@@ -228,10 +228,10 @@ struct FEGIK_GeoIpStruct
 	FString IP;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	FString Latitude;
+	int32 Latitude;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	FString Longitude;
+	int32 Longitude;
 };
 
 USTRUCT(BlueprintType)
@@ -240,10 +240,24 @@ struct FEGIK_LatitudeLongitudeStruct
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	FString Latitude;
+	int32 Latitude;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	FString Longitude;
+	int32 Longitude;
+};
+
+USTRUCT(BlueprintType)
+struct FEGIK_ContainerLogStorageStruct
+{
+	GENERATED_BODY()
+
+	//Will override the app version container log storage for this deployment
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	bool bEnabled = false;
+
+	//The name of your endpoint storage. If container log storage is enabled without this parameter, we will try to take the app version endpoint storage. If there is no endpoint storage in your app version, the container logs will not be stored. If we don't find any endpoint storage associated with this name, the container logs will not be stored.
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString EndpointStorageName;
 };
 
 USTRUCT(BlueprintType)
@@ -256,6 +270,9 @@ struct FEGIK_EnvironmentVariableStruct
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
 	FString Value;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	bool bIsHidden = false;
 };
 
 USTRUCT(BlueprintType)
@@ -284,6 +301,13 @@ enum EEGIK_FilterType
 	EGIK_Not UMETA(DisplayName = "Not")
 };
 
+UENUM(BlueprintType)
+enum EEGIK_ApSortStrategy
+{
+	EGIK_Basic UMETA(DisplayName = "Basic"),
+	EGIK_Weighted UMETA(DisplayName = "Weighted")
+};
+
 USTRUCT(BlueprintType)
 struct FEGIK_FiltersStruct
 {
@@ -300,6 +324,36 @@ struct FEGIK_FiltersStruct
 	//The type of filter
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
 	TEnumAsByte<EEGIK_FilterType> FilterType;
+
+	TSharedPtr<FJsonObject> ToJsonObject()
+	{
+		TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
+		JsonObject->SetStringField("field", Field);
+
+		TArray<TSharedPtr<FJsonValue>> ValuesArray;
+		for (auto val : Values)
+		{
+			ValuesArray.Add(MakeShareable(new FJsonValueString(val)));
+		}
+		JsonObject->SetArrayField("values", ValuesArray);
+		switch(FilterType)
+		{
+		case EGIK_Any:
+			JsonObject->SetStringField("filter_type", "any");
+			break;
+		case EGIK_All:
+			JsonObject->SetStringField("filter_type", "all");
+			break;
+		case EGIK_Not:
+			JsonObject->SetStringField("filter_type", "not");
+			break;
+		default:
+			JsonObject->SetStringField("filter_type", "any");
+			break;
+		}
+
+		return JsonObject;
+	}
 	
 };
 

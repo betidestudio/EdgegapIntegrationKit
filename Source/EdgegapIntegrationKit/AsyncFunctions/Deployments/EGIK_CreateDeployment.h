@@ -3,6 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EGIKBlueprintFunctionLibrary.h"
+#include "HttpModule.h"
+#include "Interfaces/IHttpResponse.h"
+#include "EGIKBlueprintFunctionLibrary.h"
 #include "Kismet/BlueprintAsyncActionBase.h"
 #include "EGIK_CreateDeployment.generated.h"
 
@@ -32,45 +36,50 @@ struct FEGIK_CreateDeploymentStruct
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
 	TArray<FEGIK_GeoIpStruct> UserGeoIPs;
 
-	//The request id of your deployment. If specified, the session will link to the deployment
+	//Array of strings
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	FString RequestID;
+	TArray<FString> telemetry_profile_uuid_list;
+
+	//A list of deployment variables
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	TArray<FEGIK_EnvironmentVariableStruct> DeploymentVariables;
+
+	//If you want to skip the Telemetry and use a geolocations decision only
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	bool bSkipTelemetry;
 
 	//Location
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
 	FEGIK_LatitudeLongitudeStruct Location;
 
-	//If you want your session in a specific city
+	//A web URL. This url will be called with method POST. The deployment status will be send in JSON format
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	FString City;
+	FString WebHookURL;
 
-	//If you want your session in a specific country
+	//The list of tags for your deployment
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	FString Country;
-	
-	//If you want your session in a specific continent
-	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	FString Continent;
+	TArray<FString> Tags;
 
-	//If you want your session in a specific region
+	//Container Log Storage
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	FString Region;
+	FEGIK_ContainerLogStorageStruct ContainerLogStorage;
 
-	//List of Selectors to filter potential Deployment to link and tag the Session
-	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	TArray<FEGIK_SelectorStruct> Selectors;
-
-	//When your Session is Linked, Unprocessable or in Error, we will POST the session's details on the webhook_url
-	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	FString WebhookURL;
-
-	//List of location filters to apply to the session
+	//Filters to use while choosing the deployment location.
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
 	TArray<FEGIK_FiltersStruct> Filters;
 
-	//If system should skip the telemetry and use GeoBase decision only
+	//Algorithm used to select the edge location
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	bool SkipTelemetry;
+	TEnumAsByte<EEGIK_ApSortStrategy> SortStrategy;
+
+	//Allows to override the Container command for this deployment.
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString ContainerCommand;
+
+	//Allows to override the Container arguments for this deployment.
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString ContainerArguments;
+	
 };
 
 UCLASS()
@@ -80,5 +89,11 @@ class EDGEGAPINTEGRATIONKIT_API UEGIK_CreateDeployment : public UBlueprintAsyncA
 
 public:
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"), Category = "Edgegap Integration Kit | Deployment")
-	static UEGIK_CreateDeployment* CreateDeployment(const FEGIK_CreateDeploymentStruct& DeploymentStruct);
+	static UEGIK_CreateDeployment* CreateDeployment(FEGIK_CreateDeploymentStruct DeploymentStruct);
+
+	void OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest, TSharedPtr<IHttpResponse> HttpResponse, bool bArg);
+	virtual void Activate() override;
+
+private:
+	FEGIK_CreateDeploymentStruct Var_DeploymentStruct;
 };
