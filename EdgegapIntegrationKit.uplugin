@@ -1,0 +1,29 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Edgegap Integration Kit",
+	"Description": "",
+	"Category": "Betide Studio",
+	"CreatedBy": "Betide Studio",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "EdgegapIntegrationKit",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "EdgegapEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	]
+}
