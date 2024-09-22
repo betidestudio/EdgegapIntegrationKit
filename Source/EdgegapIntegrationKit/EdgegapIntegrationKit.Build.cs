@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright (c) 2024 Betide Studio. All Rights Reserved.
 
 using UnrealBuildTool;
 

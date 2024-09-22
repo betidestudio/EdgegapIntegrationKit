@@ -1,4 +1,6 @@
-﻿using UnrealBuildTool;
+﻿// Copyright (c) 2024 Betide Studio. All Rights Reserved.
+
+using UnrealBuildTool;
 
 public class EdgegapEditor : ModuleRules
 {
