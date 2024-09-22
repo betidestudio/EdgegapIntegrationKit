@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EGIKBlueprintFunctionLibrary.h"
 #include "HttpModule.h"
 #include "Interfaces/IHttpResponse.h"
 #include "EGIKBlueprintFunctionLibrary.h"
