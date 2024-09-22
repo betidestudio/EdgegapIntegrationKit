@@ -10,9 +10,39 @@ UEGIK_CreateDeployment* UEGIK_CreateDeployment::CreateDeployment(FEGIK_CreateDep
 	return BlueprintNode;
 }
 
-void UEGIK_CreateDeployment::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest,
-	TSharedPtr<IHttpResponse> HttpResponse, bool bArg)
+void UEGIK_CreateDeployment::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest, TSharedPtr<IHttpResponse> HttpResponse, bool bArg)
 {
+	if(HttpResponse.IsValid())
+	{
+		if(EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
+		{
+			TSharedPtr<FJsonObject> JsonObject;
+			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(HttpResponse->GetContentAsString());
+			if(FJsonSerializer::Deserialize(Reader, JsonObject))
+			{
+				FEGIK_CreateDeploymentResponse Response;
+				Response.RequestId = JsonObject->GetStringField(TEXT("request_id"));
+				Response.RequestDns = JsonObject->GetStringField(TEXT("request_dns"));
+				Response.RequestApp = JsonObject->GetStringField(TEXT("request_app"));
+				Response.RequestVersion = JsonObject->GetStringField(TEXT("request_version"));
+				Response.RequestUserCount = JsonObject->GetIntegerField(TEXT("request_user_count"));
+				Response.ApSortStrategy = JsonObject->GetStringField(TEXT("ap_sort_strategy"));
+				OnSuccess.Broadcast(Response, FEGIK_ErrorStruct());
+			}
+			else
+			{
+				OnFailure.Broadcast(FEGIK_CreateDeploymentResponse(), FEGIK_ErrorStruct(0, "Failed to parse JSON"));
+			}
+		}
+		else
+		{
+			OnFailure.Broadcast(FEGIK_CreateDeploymentResponse(), FEGIK_ErrorStruct(HttpResponse->GetResponseCode(), HttpResponse->GetContentAsString()));
+		}
+	}
+	else
+	{
+		OnFailure.Broadcast(FEGIK_CreateDeploymentResponse(), FEGIK_ErrorStruct(0, "Failed to connect, likely the EdgeGap Server is down or this URL has been deprecated"));
+	}
 }
 
 void UEGIK_CreateDeployment::Activate()
@@ -23,7 +53,7 @@ void UEGIK_CreateDeployment::Activate()
 	Request->SetVerb("POST");
 	Request->SetURL("https://api.edgegap.com/v1/deploy");
 	Request->SetHeader("Content-Type", "application/json");
-	//Request->SetHeader("Authorization", "Bearer " + Var_DeploymentStruct.Token);
+	Request->SetHeader("Authorization", "token 3d6e71e0-5717-4e8b-959d-b374d004be73");
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 	JsonObject->SetStringField("app_name", Var_DeploymentStruct.AppName);
 	JsonObject->SetStringField("version_name", Var_DeploymentStruct.VersionName);
@@ -35,7 +65,7 @@ void UEGIK_CreateDeployment::Activate()
 		{
 			UserIPsArray.Add(MakeShareable(new FJsonValueString(val)));
 		}
-		JsonObject->SetArrayField("user_ips", UserIPsArray);
+		JsonObject->SetArrayField("ip_list", UserIPsArray);
 	}
 	if(Var_DeploymentStruct.UserGeoIPs.Num() > 0)
 	{
@@ -48,7 +78,7 @@ void UEGIK_CreateDeployment::Activate()
 			UserGeoIPsValue->SetNumberField("longitude", val.Longitude);
 			UserGeoIPsArray.Add(MakeShareable(new FJsonValueObject(UserGeoIPsValue)));
 		}
-		JsonObject->SetArrayField("user_geo_ips", UserGeoIPsArray);
+		JsonObject->SetArrayField("geo_ip_list", UserGeoIPsArray);
 	}
 	if(Var_DeploymentStruct.telemetry_profile_uuid_list.Num() > 0)
 	{
@@ -126,5 +156,16 @@ void UEGIK_CreateDeployment::Activate()
 	if(Var_DeploymentStruct.ContainerArguments.Len() > 0)
 	{
 		JsonObject->SetStringField("arguments", Var_DeploymentStruct.ContainerArguments);
+	}
+	FString Content;
+	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Content);
+	FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
+	Request->SetContentAsString(Content);
+	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_CreateDeployment::OnResponseReceived);
+	if(!Request->ProcessRequest())
+	{
+		OnFailure.Broadcast(FEGIK_CreateDeploymentResponse(), FEGIK_ErrorStruct(0, "Failed to process request"));
+		SetReadyToDestroy();
+		MarkAsGarbage();
 	}
 }

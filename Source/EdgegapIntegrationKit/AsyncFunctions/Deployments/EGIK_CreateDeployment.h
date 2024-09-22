@@ -79,8 +79,33 @@ struct FEGIK_CreateDeploymentStruct
 	//Allows to override the Container arguments for this deployment.
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
 	FString ContainerArguments;
-	
 };
+
+USTRUCT(BlueprintType)
+struct FEGIK_CreateDeploymentResponse
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString RequestId;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString RequestDns;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString RequestApp;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString RequestVersion;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	int32 RequestUserCount = -1;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString ApSortStrategy = "basic";
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FCreateDeploymentResponse, const FEGIK_CreateDeploymentResponse&, Response, const FEGIK_ErrorStruct&, Error);
 
 UCLASS()
 class EDGEGAPINTEGRATIONKIT_API UEGIK_CreateDeployment : public UBlueprintAsyncActionBase
@@ -93,6 +118,12 @@ public:
 
 	void OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest, TSharedPtr<IHttpResponse> HttpResponse, bool bArg);
 	virtual void Activate() override;
+
+	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Deployment")
+	FCreateDeploymentResponse OnSuccess;
+
+	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Deployment")
+	FCreateDeploymentResponse OnFailure;
 
 private:
 	FEGIK_CreateDeploymentStruct Var_DeploymentStruct;
