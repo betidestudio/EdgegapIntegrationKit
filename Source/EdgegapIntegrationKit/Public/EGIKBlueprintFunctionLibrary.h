@@ -363,6 +363,280 @@ struct FEGIK_FiltersStruct
 };
 
 
+USTRUCT(BlueprintType)
+struct FEGIK_Session
+{
+	GENERATED_BODY()
+
+	//Unique UUID
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString SessionId;
+
+	//Current status of the session
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString Status;
+
+	//If the session is linked to a Ready deployment
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	bool bReady;
+
+	//If the session is linked to a deployment
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	bool bLinked;
+
+	//Type of session created
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString Kind;
+
+	//Count of user this session currently have
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	int32 UserCount;
+	
+};
+
+USTRUCT(BlueprintType)
+struct FEGIK_DeploymentPorts
+{
+	GENERATED_BODY()
+
+	//The Port to Connect from Internet
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	int32 External;
+
+	//The internal Port of the Container
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	int32 Internal;
+	
+	//The Protocol (i.e. 'TCP')
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString Protocol;
+
+	//If the port require TLS Upgrade
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	bool bTLS_Upgrade;
+	
+	//link of the port with scheme depending of the protocol
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString Link;
+	
+	//Internal Proxy Mapping
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	int32 Proxy;
+
+
+};
+
+USTRUCT(BlueprintType)
+struct FEGIK_DeploymentLocation
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FEGIK_LocationStruct Location;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FEGIK_LatitudeLongitudeStruct LatitudeLongitude;
+};
+
+USTRUCT(BlueprintType)
+struct FEGIK_DeploymentStatusAndInfoResponse
+{
+	GENERATED_BODY()
+
+	//The Unique ID of the Deployment's request
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString RequestId;
+
+	//The FQDN that allow to connect to your Deployment
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString FQDN;
+
+	//The name of the deployed App
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString AppName;
+
+	//The version of the deployed App
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString VersionName;
+
+	//The current status of the Deployment
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString CurrentStatus;
+
+	//True if the current Deployment is ready to be connected and running
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	bool bRunning;
+
+	//True if the current Deployment is ACL protected
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	bool bWhitelistingActive;
+
+	//Timestamp of the Deployment when it is up and running
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FDateTime StartTime;
+
+	//Timestamp of the end of the Deployment
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FDateTime RemovalTime;
+
+	//Time since the Deployment is up and running in seconds
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	int32 ElapsedTime;
+
+	//The last status of the Deployment
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString LastStatus;
+
+	//True if there is an error with the Deployment
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	bool bError;
+
+	//The error details of the Deployment
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString ErrorDetails;
+
+	//Ports
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	TMap<FString, FEGIK_DeploymentPorts> Ports;
+
+	//The public IP
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString PublicIP;
+
+	//List of Active Sessions if Deployment App is Session Based
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	TArray<FEGIK_Session> ActiveSessions;
+
+	//Location
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FEGIK_DeploymentLocation Location;
+
+	//List of tags associated with the deployment
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	TArray<FString> Tags;
+
+	//The Capacity of the Deployment
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	int32 Sockets;
+
+	//The Capacity Usage of the Deployment
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	int32 SocketsUsage;
+
+	//The command to use in the container, null mean it will take the default of the container
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString Command;
+
+	//The arguments to use in the container, null mean it will take the default of the container
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
+	FString Arguments;
+
+	FEGIK_DeploymentStatusAndInfoResponse()
+	{
+		RequestId = "";
+		FQDN = "";
+		AppName = "";
+		VersionName = "";
+		CurrentStatus = "";
+		bRunning = false;
+		bWhitelistingActive = false;
+		StartTime = FDateTime();
+		RemovalTime = FDateTime();
+		ElapsedTime = 0;
+		LastStatus = "";
+		bError = false;
+		ErrorDetails = "";
+		PublicIP = "";
+		Sockets = 0;
+		SocketsUsage = 0;
+		Command = "";
+		Arguments = "";
+	}
+
+	FEGIK_DeploymentStatusAndInfoResponse(TSharedPtr<FJsonObject> JsonObject)
+	{
+		if (JsonObject.IsValid())
+		{
+			RequestId = JsonObject->GetStringField(TEXT("request_id"));
+			FQDN = JsonObject->GetStringField(TEXT("fqdn"));
+			AppName = JsonObject->GetStringField(TEXT("app_name"));
+			VersionName = JsonObject->GetStringField(TEXT("app_version"));
+			CurrentStatus = JsonObject->GetStringField(TEXT("current_status"));
+			bRunning = JsonObject->GetBoolField(TEXT("running"));
+			bWhitelistingActive = JsonObject->GetBoolField(TEXT("whitelisting_active"));
+			FDateTime::Parse(JsonObject->GetStringField(TEXT("start_time")),StartTime);
+			FDateTime::Parse(JsonObject->GetStringField(TEXT("removal_time")),RemovalTime);
+			ElapsedTime = JsonObject->GetIntegerField(TEXT("elapsed_time"));
+			LastStatus = JsonObject->GetStringField(TEXT("last_status"));
+			bError = JsonObject->GetBoolField(TEXT("error"));
+			if(JsonObject->HasField(TEXT("error_detail")))
+			{
+				ErrorDetails = JsonObject->GetStringField(TEXT("error_detail"));
+			}
+			TSharedPtr<FJsonObject> PortsObject = JsonObject->GetObjectField(TEXT("ports"));
+			for (auto& PortEntry : PortsObject->Values)
+			{
+				FEGIK_DeploymentPorts PortData;
+				TSharedPtr<FJsonObject> PortObject = PortEntry.Value->AsObject();
+				PortData.External = PortObject->GetIntegerField(TEXT("external"));
+				PortData.Internal = PortObject->GetIntegerField(TEXT("internal"));
+				PortData.Protocol = PortObject->GetStringField(TEXT("protocol"));
+				PortData.bTLS_Upgrade = PortObject->GetBoolField(TEXT("tls_upgrade"));
+				PortData.Link = PortObject->GetStringField(TEXT("link"));
+				PortData.Proxy = PortObject->GetIntegerField(TEXT("proxy"));
+				Ports.Add(PortEntry.Key, PortData);
+			}
+
+			PublicIP = JsonObject->GetStringField(TEXT("public_ip"));
+			if(JsonObject->HasField(TEXT("sessions")))
+			{
+				TArray<TSharedPtr<FJsonValue>> SessionsArray = JsonObject->GetArrayField(TEXT("sessions"));
+				for (auto& SessionValue : SessionsArray)
+				{
+					TSharedPtr<FJsonObject> SessionObject = SessionValue->AsObject();
+					FEGIK_Session SessionData;
+					SessionData.SessionId = SessionObject->GetStringField(TEXT("session_id"));
+					SessionData.Status = SessionObject->GetStringField(TEXT("status"));
+					SessionData.bReady = SessionObject->GetBoolField(TEXT("ready"));
+					SessionData.bLinked = SessionObject->GetBoolField(TEXT("linked"));
+					SessionData.Kind = SessionObject->GetStringField(TEXT("kind"));
+					SessionData.UserCount = SessionObject->GetIntegerField(TEXT("user_count"));
+					ActiveSessions.Add(SessionData);
+				}
+			}
+			// Parsing location data
+			TSharedPtr<FJsonObject> LocationObject = JsonObject->GetObjectField(TEXT("location"));
+			Location.Location.City = LocationObject->GetStringField(TEXT("city"));
+			Location.Location.Country = LocationObject->GetStringField(TEXT("country"));
+			Location.Location.Continent = LocationObject->GetStringField(TEXT("continent"));
+			Location.Location.AdministrativeDivision = LocationObject->GetStringField(TEXT("administrative_division"));
+			Location.Location.Timezone = LocationObject->GetStringField(TEXT("timezone"));
+			Location.LatitudeLongitude.Latitude = LocationObject->GetNumberField(TEXT("latitude"));
+			Location.LatitudeLongitude.Longitude = LocationObject->GetNumberField(TEXT("longitude"));
+
+			// Parsing tags
+			if(JsonObject->HasField(TEXT("tags")))
+			{
+				TArray<TSharedPtr<FJsonValue>> TagsArray = JsonObject->GetArrayField(TEXT("tags"));
+				for (auto& TagValue : TagsArray)
+				{
+					Tags.Add(TagValue->AsString());
+				}
+			}
+			// Sockets information
+			if(JsonObject->HasField(TEXT("sockets")))
+			{
+				Sockets = JsonObject->GetIntegerField(TEXT("sockets"));
+				SocketsUsage = JsonObject->GetIntegerField(TEXT("sockets_usage"));
+			}
+			// Command and Arguments
+			Command = JsonObject->GetStringField(TEXT("command"));
+			Arguments = JsonObject->GetStringField(TEXT("arguments"));
+		}
+	}
+	
+};
+
 UCLASS()
 class EDGEGAPINTEGRATIONKIT_API UEGIKBlueprintFunctionLibrary : public UBlueprintFunctionLibrary
 {
