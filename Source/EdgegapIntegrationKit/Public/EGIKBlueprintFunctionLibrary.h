@@ -4,6 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "HttpModule.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonSerializer.h"
+#include "Serialization/JsonReader.h"
+#include "Interfaces/IHttpResponse.h"
 #include "EGIKBlueprintFunctionLibrary.generated.h"
 
 USTRUCT(BlueprintType)
