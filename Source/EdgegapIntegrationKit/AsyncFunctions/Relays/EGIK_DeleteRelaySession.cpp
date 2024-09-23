@@ -17,6 +17,7 @@ void UEGIK_DeleteRelaySession::Activate()
 	TSharedRef<IHttpRequest> Request = Http->CreateRequest();
 	Request->SetVerb("DELETE");
 	Request->SetURL("https://api.edgegap.com/v1/relays/sessions/" + Var_SessionId);
+	Request->SetHeader("Authorization", UEGIKBlueprintFunctionLibrary::GetAuthorizationKey());
 	Request->SetHeader("Content-Type", "application/json");
 	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_DeleteRelaySession::OnResponseReceived);
 	if (!Request->ProcessRequest())

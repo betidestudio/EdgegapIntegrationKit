@@ -74,22 +74,16 @@ void UEGIK_CreateMatchmakingTicket::Activate()
 	Request->SetHeader("X-Real-Ip", Var_MatchmakingStruct.RealIp);
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 	JsonObject->SetStringField("profile", Var_MatchmakingStruct.Profile);
-	// Create a JSON reader to parse the string into a JSON object
 	TSharedPtr<FJsonObject> AttributesJsonObject;
 	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Var_MatchmakingStruct.Attributes);
-
-	// Try to deserialize the string into a JSON object
 	if (FJsonSerializer::Deserialize(Reader, AttributesJsonObject) && AttributesJsonObject.IsValid())
 	{
-		// Successfully parsed, now set it as an object field
 		JsonObject->SetObjectField(TEXT("attributes"), AttributesJsonObject);
 	}
 	else
 	{
-		// Handle the case where the JSON string was invalid
 		UE_LOG(LogTemp, Error, TEXT("Failed to parse attributes JSON string."));
 	}
-	//JsonObject->SetStringField("attributes", Var_MatchmakingStruct.Attributes);
 	FString JsonString;
 	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
 	FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);

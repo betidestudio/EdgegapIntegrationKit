@@ -25,7 +25,7 @@ public:
 #endif
 	//~ End UObject Interface
 
-	UPROPERTY(EditAnywhere, Category = "API Key", DisplayName = "Client API Key")
+	UPROPERTY(EditAnywhere, Category = "API Key", DisplayName = "Authorization Key")
 	FString AuthorizationKey;
 
 	UPROPERTY(Config, EditAnywhere, Category = "API", DisplayName = "API Token")

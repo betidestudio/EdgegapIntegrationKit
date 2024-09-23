@@ -18,6 +18,7 @@ void UEGIK_CreateRelaySession::Activate()
 	Request->SetVerb("GET");
 	Request->SetURL("https://api.edgegap.com/v1/relays/sessions");
 	Request->SetHeader("Content-Type", "application/json");
+	Request->SetHeader("Authorization", UEGIKBlueprintFunctionLibrary::GetAuthorizationKey());
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 	TArray<TSharedPtr<FJsonValue>> UsersArray;
 	for (int i = 0; i < Var_Input.Users.Num(); i++)

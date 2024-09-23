@@ -41,7 +41,7 @@ void UEGIK_UpdateDeploymentProperties::Activate()
 	Request->SetVerb("PATCH");
 	Request->SetURL("https://api.edgegap.com/v1/deployments/" + Var_Request.RequestId);
 	Request->SetHeader("Content-Type", "application/json");
-	Request->SetHeader("Authorization", "token 3d6e71e0-5717-4e8b-959d-b374d004be73");
+	Request->SetHeader("Authorization", UEGIKBlueprintFunctionLibrary::GetAuthorizationKey());
 	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_UpdateDeploymentProperties::OnResponseReceived);
 	if (!Request->ProcessRequest())
 	{

@@ -17,6 +17,7 @@ void UEGIK_ListRelaySessions::Activate()
 	TSharedRef<IHttpRequest> Request = Http->CreateRequest();
 	Request->SetVerb("GET");
 	Request->SetURL("https://api.edgegap.com/v1/relays/sessions");
+	Request->SetHeader("Authorization", UEGIKBlueprintFunctionLibrary::GetAuthorizationKey());
 	Request->SetHeader("Content-Type", "application/json");
 	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_ListRelaySessions::OnResponseReceived);
 	if (!Request->ProcessRequest())

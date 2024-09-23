@@ -17,3 +17,14 @@ FString UEGIKBlueprintFunctionLibrary::Conv_EGIK_MatchmakingResponseToString(FEG
 {
 	return FString::Printf(TEXT("Ticket ID: %s, Game Profile: %s, Created At: %s, Assignment: %s"), *ResponseStruct.TicketId, *ResponseStruct.GameProfile, *ResponseStruct.CreatedAt.ToString(), *Conv_EGIK_AssignmentStructToString(ResponseStruct.Assignment));
 }
+
+FString UEGIKBlueprintFunctionLibrary::GetAuthorizationKey()
+{
+	FString AuthorizationKey;
+	FString ProjectEngineIniPath = FPaths::ProjectConfigDir() / TEXT("DefaultEngine.ini");
+	if (GConfig)
+	{
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("AuthorizationKey"), AuthorizationKey, ProjectEngineIniPath);
+	}
+	return AuthorizationKey;
+}

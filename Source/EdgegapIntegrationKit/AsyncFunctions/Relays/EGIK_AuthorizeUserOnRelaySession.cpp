@@ -18,6 +18,7 @@ void UEGIK_AuthorizeUserOnRelaySession::Activate()
 	TSharedRef<IHttpRequest> Request = Http->CreateRequest();
 	Request->SetVerb("POST");
 	Request->SetURL("https://api.edgegap.com/v1/relays/sessions:authorize-user");
+	Request->SetHeader("Authorization", UEGIKBlueprintFunctionLibrary::GetAuthorizationKey());
 	Request->SetHeader("Content-Type", "application/json");
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 	JsonObject->SetStringField("session_id", Var_Input.SessionId);

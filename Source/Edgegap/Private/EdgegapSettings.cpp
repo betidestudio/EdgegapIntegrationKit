@@ -32,7 +32,6 @@ void UEdgegapSettings::PostEditChangeProperty(struct FPropertyChangedEvent& Prop
 	{
 		bIsTokenVerified = false;
 	}
-	GConfig->Flush(false, *GetDefault<UEdgegapSettings>()->GetDefaultConfigFilename());
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	if(PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetName() == TEXT("AuthorizationKey"))
 	{

@@ -17,6 +17,7 @@ void UEGIK_GetLobby::Activate()
 	TSharedRef<IHttpRequest> Request = Http->CreateRequest();
 	Request->SetVerb("GET");
 	Request->SetURL("https://api.edgegap.com/v1/lobbies/" + Var_LobbyName);
+	Request->SetHeader("Authorization", UEGIKBlueprintFunctionLibrary::GetAuthorizationKey());
 	Request->SetHeader("Content-Type", "application/json");
 	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_GetLobby::OnResponseReceived);
 	if (!Request->ProcessRequest())

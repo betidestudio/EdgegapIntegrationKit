@@ -857,6 +857,9 @@ public:
     UFUNCTION(BlueprintPure, meta=(CompactNodeTitle = "->", BlueprintAutocast), Category = "Edgegap Integration Kit | Conversion")
     static FString Conv_EGIK_MatchmakingResponseToString(FEGIK_MatchmakingResponse ResponseStruct);
 
+	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit")
+	static FString GetAuthorizationKey();
+
 	//UFUNCTION(BlueprintCallable, meta = (WorldContext = "WorldContextObject", FriendlyName = "Create Item Data", BlueprintInternalUseOnly = "true"), Category = "Game Inventory System")
 	//static class UGISItemData* Create(UObject* WorldContextObject, TSubclassOf ItemType, APlayerController* OwningPlayer);
 };

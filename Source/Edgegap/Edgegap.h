@@ -77,8 +77,8 @@ public:
 	{
 		if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 		{
-			SettingsModule->RegisterSettings("Project", "Plugins", "Edgegap",
-				LOCTEXT("RuntimeSettingsName", "Edgegap"),
+			SettingsModule->RegisterSettings("Project", "Game", "Edgegap",
+				LOCTEXT("RuntimeSettingsName", "Edgegap Integration Kit"),
 				LOCTEXT("RuntimeSettingsDescription", "Deploy into Edgegap"),
 				GetMutableDefault<UEdgegapSettings>());
 		}

@@ -20,7 +20,7 @@ void UEGIK_RemoveUseronRelaySession::Activate()
 	Request->SetVerb("POST");
 	Request->SetURL("https://api.edgegap.com/v1/relays/sessions:revoke-user");
 	Request->SetHeader("Content-Type", "application/json");
-	Request->SetHeader("Authorization", Var_AuthorizationToken);
+	Request->SetHeader("Authorization", UEGIKBlueprintFunctionLibrary::GetAuthorizationKey());
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 	JsonObject->SetStringField("session_id", Var_SessionId);
 	JsonObject->SetStringField("authorization_token", Var_AuthorizationToken);

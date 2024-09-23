@@ -18,6 +18,7 @@ void UEGIK_CreateLobby::Activate()
 	Request->SetVerb("POST");
 	Request->SetURL("https://api.edgegap.com/v1/lobbies");
 	Request->SetHeader("Content-Type", "application/json");
+	Request->SetHeader("Authorization", UEGIKBlueprintFunctionLibrary::GetAuthorizationKey());
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 	JsonObject->SetStringField("name", Var_LobbyName);
 	FString Content;
