@@ -4,7 +4,15 @@
 #include "Settings/ProjectPackagingSettings.h"
 #include "Misc/ConfigCacheIni.h"
 
-UEdgegapSettings::UEdgegapSettings() {}
+FString ProjectEngineIniPath = FPaths::ProjectConfigDir() / TEXT("DefaultEngine.ini");
+
+UEdgegapSettings::UEdgegapSettings()
+{
+	if(GConfig)
+	{
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("AuthorizationKey"), AuthorizationKey, ProjectEngineIniPath);
+	}
+}
 
 #if WITH_EDITOR
 
@@ -24,8 +32,14 @@ void UEdgegapSettings::PostEditChangeProperty(struct FPropertyChangedEvent& Prop
 	{
 		bIsTokenVerified = false;
 	}
-
+	GConfig->Flush(false, *GetDefault<UEdgegapSettings>()->GetDefaultConfigFilename());
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+	if(PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetName() == TEXT("AuthorizationKey"))
+	{
+		GConfig->SetString(TEXT("EdgegapIntegrationKit"), TEXT("AuthorizationKey"), *AuthorizationKey, ProjectEngineIniPath);
+		GConfig->Flush(false, ProjectEngineIniPath);
+	}
+
 }
 
 #endif // WITH_EDITOR

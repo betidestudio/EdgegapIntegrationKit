@@ -24,14 +24,6 @@
 			]
 		},
 		{
-			"Name": "EdgegapEditor",
-			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
-				"Win64"
-			]
-		},
-		{
 			"Name": "Edgegap",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
