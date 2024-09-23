@@ -634,7 +634,208 @@ struct FEGIK_DeploymentStatusAndInfoResponse
 			Arguments = JsonObject->GetStringField(TEXT("arguments"));
 		}
 	}
-	
+};
+
+USTRUCT(BlueprintType)
+struct FEGIK_CountryLocation
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Ip LookUp")
+	FString Code;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Ip LookUp")
+	FString Name;
+};
+
+USTRUCT(BlueprintType)
+struct FEGIK_ContinentLocation
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Ip LookUp")
+	FString Code;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Ip LookUp")
+	FString Name;
+};
+
+USTRUCT(BlueprintType)
+struct FEGIK_IpLookUpLocation
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Ip LookUp")
+	FEGIK_CountryLocation Country;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Ip LookUp")
+	FEGIK_ContinentLocation Continent;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Ip LookUp")
+	FEGIK_LatitudeLongitudeStruct LatitudeLongitude;
+};
+
+USTRUCT(BlueprintType)
+struct FEGIK_IpLookUpAddress
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Ip LookUp")
+	FString Type;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Ip LookUp")
+	FString IP;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Ip LookUp")
+	FEGIK_IpLookUpLocation Location;
+};
+
+USTRUCT(BlueprintType)
+struct FEGIK_LobbyInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Lobbies")
+	FString Name;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Lobbies")
+	FString Url;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Lobbies")
+	FString Status;
+};
+
+
+USTRUCT(BlueprintType)
+struct FEGIK_SessionUser
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
+	FString IpAddress;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
+	FEGIK_LatitudeLongitudeStruct LatitudeLongitude;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
+	int32 AuthorizationToken;
+};
+
+USTRUCT(BlueprintType)
+struct FEGIK_SessionPortInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
+	int32 Port;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
+	FString Link;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
+	FString Protocol;
+};
+
+USTRUCT(BlueprintType)
+struct FEGIK_RelayInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
+	FString Ip;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
+	FString Host;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
+	TMap<FString, FEGIK_SessionPortInfo> Ports;
+};
+
+USTRUCT(BlueprintType)
+struct FEGIK_RelaySessionInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
+	FString SessionId;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
+	int32 AuthorizationToken;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
+	FString Status;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
+	bool bReady = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
+	bool bLinked = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
+	FString Error;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
+	TArray<FEGIK_SessionUser> Users;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
+	FEGIK_RelayInfo Relay;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
+	FString WebHookUrl;
+
+	FEGIK_RelaySessionInfo()
+	{
+		SessionId = "";
+		AuthorizationToken = 0;
+		Status = "";
+		bReady = false;
+		bLinked = false;
+		Error = "";
+		WebHookUrl = "";
+	}
+	FEGIK_RelaySessionInfo(TSharedPtr<FJsonObject> JsonObject)
+	{
+		if (JsonObject.IsValid())
+		{
+			SessionId = JsonObject->GetStringField(TEXT("session_id"));
+			AuthorizationToken = JsonObject->GetIntegerField(TEXT("authorization_token"));
+			Status = JsonObject->GetStringField(TEXT("status"));
+			bReady = JsonObject->GetBoolField(TEXT("ready"));
+			bLinked = JsonObject->GetBoolField(TEXT("linked"));
+			Error = JsonObject->GetStringField(TEXT("error"));
+			WebHookUrl = JsonObject->GetStringField(TEXT("webhook_url"));
+			if(JsonObject->HasField(TEXT("session_user")))
+			{
+				TArray<TSharedPtr<FJsonValue>> UsersArray = JsonObject->GetArrayField(TEXT("session_user"));
+				for (auto& UserValue : UsersArray)
+				{
+					TSharedPtr<FJsonObject> UserObject = UserValue->AsObject();
+					FEGIK_SessionUser UserData;
+					UserData.IpAddress = UserObject->GetStringField(TEXT("ip_address"));
+					UserData.LatitudeLongitude.Latitude = UserObject->GetIntegerField(TEXT("latitude"));
+					UserData.LatitudeLongitude.Longitude = UserObject->GetIntegerField(TEXT("longitude"));
+					UserData.AuthorizationToken = UserObject->GetIntegerField(TEXT("authorization_token"));
+					Users.Add(UserData);
+				}
+			}
+			if(JsonObject->HasField(TEXT("relay")))
+			{
+				TSharedPtr<FJsonObject> RelayObject = JsonObject->GetObjectField(TEXT("relay"));
+				Relay.Ip = RelayObject->GetStringField(TEXT("ip"));
+				Relay.Host = RelayObject->GetStringField(TEXT("host"));
+				TSharedPtr<FJsonObject> PortsObject = RelayObject->GetObjectField(TEXT("ports"));
+				for (auto& PortEntry : PortsObject->Values)
+				{
+					FEGIK_SessionPortInfo PortData;
+					TSharedPtr<FJsonObject> PortObject = PortEntry.Value->AsObject();
+					PortData.Port = PortObject->GetIntegerField(TEXT("port"));
+					PortData.Link = PortObject->GetStringField(TEXT("link"));
+					PortData.Protocol = PortObject->GetStringField(TEXT("protocol"));
+					Relay.Ports.Add(PortEntry.Key, PortData);
+				}
+			}
+		}
+	}
 };
 
 UCLASS()
