@@ -120,7 +120,7 @@ void Edgegap::RegisterMenus()
                     [this] {
                         return MakeEdgegapMenu();
                     }),
-                        LOCTEXT("EdgegapMenu", "Edgegap"),
+                        LOCTEXT("EdgegapMenu", "Edgegap Integration Kit"),
                         LOCTEXT("EdgegapMenu_Tooltip", "Edgegap Plugin Tools"),
                         FSlateIcon("EdgegapPluginToolsStyle", "EdgegapIcon.Icon64"),
                         false,

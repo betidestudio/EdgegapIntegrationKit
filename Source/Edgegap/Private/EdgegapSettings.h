@@ -31,6 +31,9 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "API Key", DisplayName = "Deployer Key")
 	FAPITokenSettings APIToken;
 
+	UPROPERTY(Config, EditAnywhere, Category = "Docker Settings", DisplayName = "Docker Path")
+	FString DockerPath = "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe";
+
 	UPROPERTY(Config, EditAnywhere, Category = "Application Info", Meta = (EditCondition = "bIsTokenVerified"), DisplayName = "Application Name")
 	FText ApplicationName;
 

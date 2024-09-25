@@ -2,6 +2,7 @@
 
 #include "EdgegapSettingsDetails.h"
 #include "EdgegapSettings.h"
+#include "GenericPlatform/GenericPlatformProcess.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
@@ -937,8 +938,52 @@ void FEdgegapSettingsDetails::SaveAll()
 	FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages, bFastSave, bNotifyNoPackagesSaved, bCanBeDeclined);
 }
 
+bool FEdgegapSettingsDetails::CheckDockerRunning()
+{
+	int32 ReturnCode;
+	FString OutString;
+	FString ErrString;
+
+	UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
+	if(EdgegapSettings->DockerPath.IsEmpty())
+	{
+		UE_LOG(EdgegapLog, Error, TEXT("Docker path is empty. Please set the path to Docker in the Edgegap settings."));
+		return false;
+	}
+	//Check if file exists
+	if (!FPaths::FileExists(EdgegapSettings->DockerPath))
+	{
+		UE_LOG(EdgegapLog, Error, TEXT("Docker path is invalid. Please set the path to Docker in the Edgegap settings."));
+		return false;
+	}
+	
+	// Command to check if Docker is running
+	FString CommandLine = TEXT("info");
+	
+	// Executes the docker info command using the full path
+	FPlatformProcess::ExecProcess(*EdgegapSettings->DockerPath, *CommandLine, &ReturnCode, &OutString, &ErrString);
+
+	if (ReturnCode != 0)
+	{
+		// Docker is not running, handle the error
+		UE_LOG(EdgegapLog, Error, TEXT("Docker isn't running - please start Docker and try again!"));
+		return false;
+	}
+
+	// If Docker is running, proceed with the script
+	UE_LOG(EdgegapLog, Log, TEXT("Docker is running! Proceeding with containerization."));
+	return true;
+}
+
+
 void FEdgegapSettingsDetails::PackageProject(const FName IniPlatformName)
 {
+	if(!CheckDockerRunning())
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("DockerNotRunning", "Docker isn't running - please start Docker and try again!"));
+		return;
+	}
+	
 	// Handle Build and Push button
 	const UGeneralProjectSettings& ProjectSettings = *GetDefault<UGeneralProjectSettings>();
 	UProjectPackagingSettings* PackagingSettings = GetMutableDefault<UProjectPackagingSettings>();

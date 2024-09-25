@@ -99,6 +99,7 @@ public:
 	static void PackageProject(const FName IniPlatformName);
 
 	static void SaveAll();
+	static bool CheckDockerRunning();
 	static void AddMessageLog(const FText& Text, const FText& Detail, const FString& TutorialLink, const FString& DocumentationLink);
 	static void Containerize(FString DockerFilePath, FString StartScriptPath, FString ServerBuildPath, FString RegistryURL, FString ImageRepository, FString Tag, FString PrivateUsername, FString PrivateToken);
 	static void PushContainer(FString ImageName, FString RegistryURL, FString PrivateUsername, FString PrivateToken, bool LoggedIn=false);
