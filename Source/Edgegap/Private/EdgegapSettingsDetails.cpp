@@ -552,7 +552,7 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	const FSlateColor BlueSlateColor = FSlateColor(FLinearColor(0.42f, 0.29f, 0.204f, 1.0f));
 
 	IDetailCategoryBuilder& HiddenCategory = DetailBuilder.EditCategory(" ");
-	IDetailCategoryBuilder& ApiInfoCategory = DetailBuilder.EditCategory("API");
+	IDetailCategoryBuilder& ApiInfoCategory = DetailBuilder.EditCategory("API Key");
 	IDetailCategoryBuilder& ApplicationInfoCategory = DetailBuilder.EditCategory("Application Info");
 
 	TSharedPtr<IPropertyHandle> IsTokenVerifiedProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, bIsTokenVerified));
@@ -865,7 +865,7 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 							SNew(SButton)
 							.Text(FText::FromString("Documentation"))
 							.OnClicked(FOnClicked::CreateLambda([this]() {
-								FPlatformProcess::LaunchURL(TEXT("https://docs.edgegap.com/docs/category/unreal"), NULL, NULL);
+								FPlatformProcess::LaunchURL(TEXT("https://egik.betide.studio/"), NULL, NULL);
 								return(FReply::Handled());
 							}))
 						]
@@ -1346,7 +1346,8 @@ void FEdgegapSettingsDetails::Request_VerifyToken()
 
 				UEdgegapSettings* MutableEdgegapSettings = GetMutableDefault<UEdgegapSettings>();
 				MutableEdgegapSettings->bIsTokenVerified = true;
-				MutableEdgegapSettings->SaveConfig();
+				GConfig->Flush(false, GEditorPerProjectIni);
+				MutableEdgegapSettings->SaveConfig(CPF_Config, *MutableEdgegapSettings->GetDefaultConfigFilename());
 
 				FNotificationInfo Info(LOCTEXT("OperationSuccess", "Token verified successfully"));
 				Info.ExpireDuration = 3.0f;
@@ -1647,7 +1648,7 @@ void FEdgegapSettingsDetails::CreateVersion(FString AppName, FString VersionName
 
 	Request->SetHeader("Content-Type", "application/json");
 	Request->SetHeader(TEXT("Authorization"), *API_key);
-
+	UEdgegapSettings* EGSettings = GetMutableDefault<UEdgegapSettings>();
 	// prepare json data
 	FString JsonString;
 	TSharedRef<TJsonWriter<TCHAR>> JsonWriter = TJsonWriterFactory<TCHAR>::Create(&JsonString);
@@ -1658,15 +1659,37 @@ void FEdgegapSettingsDetails::CreateVersion(FString AppName, FString VersionName
 	JsonWriter->WriteValue("docker_tag", Tag);
 	JsonWriter->WriteValue("private_username", PrivateUsername);
 	JsonWriter->WriteValue("private_token", PrivateToken);
-	JsonWriter->WriteValue("req_cpu", 128);
-	JsonWriter->WriteValue("req_memory", 256);
-	JsonWriter->WriteValue("req_video", 0);
-	JsonWriter->WriteValue("max_duration", 60);
-	JsonWriter->WriteValue("time_to_deploy", 120);
+	if(EGSettings)
+	{
+		JsonWriter->WriteValue("req_cpu", EGSettings->RequiredCPU);
+		JsonWriter->WriteValue("req_memory", EGSettings->RequiredMemory);
+		JsonWriter->WriteValue("req_video", EGSettings->RequiredGPU);
+		JsonWriter->WriteValue("max_duration", EGSettings->MaxDuration);
+		JsonWriter->WriteValue("time_to_deploy", EGSettings->EstimatedDeployTime);
+	}
+	else
+	{
+		JsonWriter->WriteValue("req_cpu", 128);
+		JsonWriter->WriteValue("req_memory", 256);
+		JsonWriter->WriteValue("req_video", 0);
+		JsonWriter->WriteValue("max_duration", 60);
+		JsonWriter->WriteValue("time_to_deploy", 120);
+	}
 	JsonWriter->WriteValue("use_telemetry", false);
 	JsonWriter->WriteValue("inject_context_env", true);
 	JsonWriter->WriteValue("force_cache", false);
 	JsonWriter->WriteValue("whitelisting_active", false);
+	if(EGSettings)
+	{
+		if(!EGSettings->EntrypointOverride.IsEmpty())
+		{
+			JsonWriter->WriteValue("command", EGSettings->EntrypointOverride);
+		}
+		if(!EGSettings->CommandArguments.IsEmpty())
+		{
+			JsonWriter->WriteValue("arguments", EGSettings->CommandArguments);
+		}
+	}
 
 	JsonWriter->WriteArrayStart(TEXT("ports"));
 	JsonWriter->WriteObjectStart();

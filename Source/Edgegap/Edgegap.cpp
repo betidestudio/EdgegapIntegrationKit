@@ -170,7 +170,7 @@ bool Edgegap::Can_BuildAndPush()
 
 void Edgegap::Do_OpenSettings()
 {
-    FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer(FName("Project"), FName("Plugins"), FName("Edgegap"));
+    FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer(FName("Project"), FName("Game"), FName("Edgegap"));
 }
 
 bool Edgegap::Can_OpenSettings()

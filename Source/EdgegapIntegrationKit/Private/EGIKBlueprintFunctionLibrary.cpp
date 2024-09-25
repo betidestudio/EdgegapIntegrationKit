@@ -2,6 +2,9 @@
 
 
 #include "EGIKBlueprintFunctionLibrary.h"
+#include "Misc/Paths.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Runtime/Core/Public/CoreGlobals.h"
 
 FString UEGIKBlueprintFunctionLibrary::Conv_EGIK_ErrorStructToString(FEGIK_ErrorStruct ErrorStruct)
 {

@@ -32,13 +32,12 @@ void UEdgegapSettings::PostEditChangeProperty(struct FPropertyChangedEvent& Prop
 	{
 		bIsTokenVerified = false;
 	}
-	Super::PostEditChangeProperty(PropertyChangedEvent);
 	if(PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetName() == TEXT("AuthorizationKey"))
 	{
 		GConfig->SetString(TEXT("EdgegapIntegrationKit"), TEXT("AuthorizationKey"), *AuthorizationKey, ProjectEngineIniPath);
 		GConfig->Flush(false, ProjectEngineIniPath);
 	}
-
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
 #endif // WITH_EDITOR
