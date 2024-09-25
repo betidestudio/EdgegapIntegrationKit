@@ -13,22 +13,22 @@ struct FEGIK_ListRelayPagination
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edgegap Integration Kit")
-	int32 Number;
+	int32 Number = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edgegap Integration Kit")
-	int32 NextPageNumber;
+	int32 NextPageNumber = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edgegap Integration Kit")
-	int32 PreviousPageNumber;
+	int32 PreviousPageNumber = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edgegap Integration Kit")
-	int32 TotalPages;
+	int32 TotalPages = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edgegap Integration Kit")
-	bool bHasNextPage;
+	bool bHasNextPage = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edgegap Integration Kit")
-	bool bHasPreviousPage;
+	bool bHasPreviousPage = false;
 };
 
 USTRUCT(BlueprintType)

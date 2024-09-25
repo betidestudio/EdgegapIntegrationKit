@@ -16,7 +16,7 @@ struct FEGIK_UpdateDeploymentPropertiesRequest
 	FString RequestId;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	bool bIsJoinableBySession;
+	bool bIsJoinableBySession = false;
 	
 };
 

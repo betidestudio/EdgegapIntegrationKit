@@ -21,10 +21,10 @@ struct FEGIK_LocationBeaconStruct
 	FString PublicIP;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Location")
-	int32 TCP_Port;
+	int32 TCP_Port = 0;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Location")
-	int32 UDP_Port;
+	int32 UDP_Port = 0;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Location")
 	FEGIK_LocationStruct Location;
@@ -36,7 +36,7 @@ struct FEGIK_LocationBeaconResponse
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Location")
-	int32 Count;
+	int32 Count = 0;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Location")
 	TArray<FEGIK_LocationBeaconStruct> Beacons;

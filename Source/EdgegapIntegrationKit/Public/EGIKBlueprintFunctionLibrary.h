@@ -17,14 +17,14 @@ struct FEGIK_PortStruct
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Assignment")
-	int32 InternalPort;
+	int32 InternalPort = 0;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Assignment")
-	int32 ExternalPort;
+	int32 ExternalPort = 0;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Assignment")
-	FString Protocol;
-};
+	FString Protocol = "";
+}; 
 
 
 USTRUCT(BlueprintType)
@@ -54,7 +54,7 @@ struct FEGIK_ErrorStruct
     GENERATED_BODY()
     
     UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Error")
-    int32 ErrorCode;
+    int32 ErrorCode = 0;
 
     UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Error")
     FString ErrorMessage;
@@ -233,10 +233,10 @@ struct FEGIK_GeoIpStruct
 	FString IP;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	int32 Latitude;
+	int32 Latitude = 0;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	int32 Longitude;
+	int32 Longitude = 0;
 };
 
 USTRUCT(BlueprintType)
@@ -245,10 +245,10 @@ struct FEGIK_LatitudeLongitudeStruct
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	int32 Latitude;
+	int32 Latitude = 0;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	int32 Longitude;
+	int32 Longitude	= 0;
 };
 
 USTRUCT(BlueprintType)
@@ -328,7 +328,7 @@ struct FEGIK_FiltersStruct
 
 	//The type of filter
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	TEnumAsByte<EEGIK_FilterType> FilterType;
+	TEnumAsByte<EEGIK_FilterType> FilterType = EGIK_Any;
 
 	TSharedPtr<FJsonObject> ToJsonObject()
 	{
@@ -378,11 +378,11 @@ struct FEGIK_Session
 
 	//If the session is linked to a Ready deployment
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	bool bReady;
+	bool bReady = false;
 
 	//If the session is linked to a deployment
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	bool bLinked;
+	bool bLinked = false;
 
 	//Type of session created
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
@@ -390,7 +390,7 @@ struct FEGIK_Session
 
 	//Count of user this session currently have
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	int32 UserCount;
+	int32 UserCount = 0;
 	
 };
 
@@ -401,11 +401,11 @@ struct FEGIK_DeploymentPorts
 
 	//The Port to Connect from Internet
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	int32 External;
+	int32 External = 0;
 
 	//The internal Port of the Container
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	int32 Internal;
+	int32 Internal = 0;
 	
 	//The Protocol (i.e. 'TCP')
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
@@ -413,7 +413,7 @@ struct FEGIK_DeploymentPorts
 
 	//If the port require TLS Upgrade
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	bool bTLS_Upgrade;
+	bool bTLS_Upgrade = false;
 	
 	//link of the port with scheme depending of the protocol
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
@@ -421,7 +421,7 @@ struct FEGIK_DeploymentPorts
 	
 	//Internal Proxy Mapping
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	int32 Proxy;
+	int32 Proxy = 0;
 
 
 };
@@ -465,7 +465,7 @@ struct FEGIK_DeploymentStatusAndInfoResponse
 
 	//True if the current Deployment is ready to be connected and running
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	bool bRunning;
+	bool bRunning = false;
 
 	//True if the current Deployment is ACL protected
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
@@ -481,7 +481,7 @@ struct FEGIK_DeploymentStatusAndInfoResponse
 
 	//Time since the Deployment is up and running in seconds
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	int32 ElapsedTime;
+	int32 ElapsedTime = 0;
 
 	//The last status of the Deployment
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
@@ -489,7 +489,7 @@ struct FEGIK_DeploymentStatusAndInfoResponse
 
 	//True if there is an error with the Deployment
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	bool bError;
+	bool bError = false;
 
 	//The error details of the Deployment
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
@@ -718,7 +718,7 @@ struct FEGIK_SessionUser
 	FEGIK_LatitudeLongitudeStruct LatitudeLongitude;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
-	int32 AuthorizationToken;
+	int32 AuthorizationToken = 0;
 };
 
 USTRUCT(BlueprintType)
@@ -727,7 +727,7 @@ struct FEGIK_SessionPortInfo
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
-	int32 Port;
+	int32 Port = 0;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
 	FString Link;
@@ -760,7 +760,7 @@ struct FEGIK_RelaySessionInfo
 	FString SessionId;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
-	int32 AuthorizationToken;
+	int32 AuthorizationToken = 0;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Sessions")
 	FString Status;

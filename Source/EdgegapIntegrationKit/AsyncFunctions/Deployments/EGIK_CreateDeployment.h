@@ -25,7 +25,7 @@ struct FEGIK_CreateDeploymentStruct
 
 	//If the Application is public or private. If not specified, we will look for a private Application
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	bool IsPublicApp;
+	bool IsPublicApp = false;
 
 	//The List of IP of your user - Will be used to find the best location to deploy your App
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
@@ -45,7 +45,7 @@ struct FEGIK_CreateDeploymentStruct
 
 	//If you want to skip the Telemetry and use a geolocations decision only
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	bool bSkipTelemetry;
+	bool bSkipTelemetry = false;
 
 	//Location
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
@@ -69,7 +69,7 @@ struct FEGIK_CreateDeploymentStruct
 
 	//Algorithm used to select the edge location
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	TEnumAsByte<EEGIK_ApSortStrategy> SortStrategy;
+	TEnumAsByte<EEGIK_ApSortStrategy> SortStrategy = EEGIK_ApSortStrategy::EGIK_Basic;
 
 	//Allows to override the Container command for this deployment.
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
