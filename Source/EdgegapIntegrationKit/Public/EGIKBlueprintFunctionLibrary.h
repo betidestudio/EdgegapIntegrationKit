@@ -860,6 +860,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit")
 	static FString GetAuthorizationKey();
 
-	//UFUNCTION(BlueprintCallable, meta = (WorldContext = "WorldContextObject", FriendlyName = "Create Item Data", BlueprintInternalUseOnly = "true"), Category = "Game Inventory System")
-	//static class UGISItemData* Create(UObject* WorldContextObject, TSubclassOf ItemType, APlayerController* OwningPlayer);
+	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit")
+	static void GetEnvironmentVariable(FString Key, FString& Value);
 };

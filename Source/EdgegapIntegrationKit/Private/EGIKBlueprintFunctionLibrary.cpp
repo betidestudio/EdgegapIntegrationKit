@@ -31,3 +31,8 @@ FString UEGIKBlueprintFunctionLibrary::GetAuthorizationKey()
 	}
 	return AuthorizationKey;
 }
+
+void UEGIKBlueprintFunctionLibrary::GetEnvironmentVariable(FString Key, FString& Value)
+{
+	Value = FPlatformMisc::GetEnvironmentVariable(*Key);
+}
