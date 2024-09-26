@@ -71,7 +71,10 @@ void UEGIK_CreateMatchmakingTicket::Activate()
 	Request->SetVerb("POST");
 	Request->SetURL(Var_MatchmakingStruct.MatchmakingURL + "/tickets");
 	Request->SetHeader("Content-Type", "application/json");
-	Request->SetHeader("X-Real-Ip", Var_MatchmakingStruct.RealIp);
+	if(!Var_MatchmakingStruct.RealIp.IsEmpty())
+	{
+		Request->SetHeader("X-Real-Ip", Var_MatchmakingStruct.RealIp);
+	}
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 	JsonObject->SetStringField("profile", Var_MatchmakingStruct.Profile);
 	TSharedPtr<FJsonObject> AttributesJsonObject;
