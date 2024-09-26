@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "TimerManager.h"
 #include "Sockets.h"
 #include "SocketSubsystem.h"
 #include "Interfaces/IPv4/IPv4Address.h"
@@ -47,12 +48,12 @@ public:
 
 	FOnLatencyTestCompleted OnLatencyTestCompletedDelegate;
 
+	FTimerHandle ResponseTimeoutHandle; // Timer handle for managing the pong response timeout
+
 protected:
 	virtual void Deinitialize() override;
 
 private:
-	FTimerHandle ResponseTimeoutHandle; // Timer handle for managing the pong response timeout
-	
 	FSocket* UDPSocket;
 	double StartTime;
 
