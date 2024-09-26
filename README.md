@@ -1,8 +1,8 @@
-<h1 align="center" id="title">EOS Integration Kit V4</h1>
+<h1 align="center" id="title">Edgegap Integration Kit</h1>
 
 <p align="center"><img src="https://socialify.git.ci/betidestudio/EdgegapIntegrationKit/image?description=1&descriptionEditable=The%20ultimate%20EdgeGap%20Integration%20Kit&font=Inter&language=1&name=1&owner=1&pattern=Plus&stargazers=1&theme=Dark" alt="project-image" width="600" height="338/"></p>
 
-<p id="description">EIK (Epic Online Services Integration Kit) is a plugin that enables seamless integration between Epic Online Services (EOS) and Unreal Engine. The plugin provides access to the EOS SDK (Software Development Kit) within Unreal Engine allowing developers to easily implement features such as matchmaking achievements leaderboards and more.</p>
+<p id="description">EThe Edgegap Integration Kit simplifies the process of deploying and managing multiplayer game servers using Edgegap’s distributed orchestration platform. By leveraging Edgegap's automated game server deployment across its global edge computing infrastructure, you can ensure low latency, scalable server hosting, and seamless integration with Unreal Engine.</p>
 
 - [Discord Support](https://discord.gg/betidestudio)
 - [Mail Support](mailto:support@betide.studio)
