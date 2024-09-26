@@ -41,7 +41,9 @@ public class EdgegapIntegrationKit : ModuleRules
 				"SlateCore",
 				"JsonUtilities",
 				"Json",
-				"HTTP"
+				"HTTP",
+				"Sockets",
+				"Networking"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
