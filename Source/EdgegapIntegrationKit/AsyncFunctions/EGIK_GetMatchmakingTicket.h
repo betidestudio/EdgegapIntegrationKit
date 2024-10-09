@@ -17,6 +17,9 @@ struct FEGIK_MatchmakingRequest
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
 	FString MatchmakingURL;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
+	FString AuthToken;
 	
 };
 

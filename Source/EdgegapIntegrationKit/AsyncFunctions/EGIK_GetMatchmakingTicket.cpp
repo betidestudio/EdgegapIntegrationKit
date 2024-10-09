@@ -75,6 +75,7 @@ void UEGIK_GetMatchmakingTicket::Activate()
 	Request->SetVerb("GET");
 	Request->SetURL(Var_MatchmakingRequest.MatchmakingURL + "/tickets/" + Var_MatchmakingRequest.TicketId);
 	Request->SetHeader("Content-Type", "application/json");
+	Request->SetHeader("Authorization", Var_MatchmakingRequest.AuthToken);
 	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_GetMatchmakingTicket::OnResponseReceived);
 	if(!Request->ProcessRequest())
 	{

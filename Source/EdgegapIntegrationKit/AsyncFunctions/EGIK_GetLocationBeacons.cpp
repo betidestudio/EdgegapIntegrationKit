@@ -3,10 +3,11 @@
 
 #include "EGIK_GetLocationBeacons.h"
 
-UEGIK_GetLocationBeacons* UEGIK_GetLocationBeacons::GetLocationBeacons(FString MatchmakingUrl)
+UEGIK_GetLocationBeacons* UEGIK_GetLocationBeacons::GetLocationBeacons(FString MatchmakingUrl, FString AuthToken)
 {
 	UEGIK_GetLocationBeacons* BlueprintNode = NewObject<UEGIK_GetLocationBeacons>();
 	BlueprintNode->Var_MatchmakingUrl = MatchmakingUrl;
+	BlueprintNode->Var_AuthToken = AuthToken;
 	return BlueprintNode;
 }
 
@@ -67,6 +68,7 @@ void UEGIK_GetLocationBeacons::Activate()
 	Request->SetVerb("GET");
 	Request->SetURL(Var_MatchmakingUrl + "/locations/beacons");
 	Request->SetHeader("Content-Type", "application/json");
+	Request->SetHeader("Authorization", Var_AuthToken);
 	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_GetLocationBeacons::OnResponseReceived);
 	if(!Request->ProcessRequest())
 	{

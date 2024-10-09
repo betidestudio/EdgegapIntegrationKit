@@ -48,7 +48,8 @@ public:
 
 	FOnLatencyTestCompleted OnLatencyTestCompletedDelegate;
 
-	FTimerHandle ResponseTimeoutHandle; // Timer handle for managing the pong response timeout
+	FTimerHandle ResponseTimerHandle; // Timer handle for managing the pong response timeout
+	FTimerHandle ResponseTimeoutHandle;
 
 protected:
 	virtual void Deinitialize() override;

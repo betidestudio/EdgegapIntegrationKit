@@ -68,15 +68,22 @@ void UEdgegapLatencySubsystem::SendPingToServer(const FIPPortInfo& ServerInfo)
     // Send the ping message
     FString PingMessage = TEXT("Ping");
     int32 BytesSent = 0;
-    UDPSocket->SendTo((uint8*)TCHAR_TO_UTF8(*PingMessage), PingMessage.Len(), BytesSent, *RemoteAddr);
+    bool bSent = UDPSocket->SendTo((uint8*)TCHAR_TO_UTF8(*PingMessage), PingMessage.Len(), BytesSent, *RemoteAddr);
+    if (!bSent)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to send ping to server: %s:%d"), *ServerInfo.IPAddress, ServerInfo.Port);
+        MoveToNextServer();  // Move to next server if ping fails
+        return;
+    }
     UE_LOG(LogTemp, Log, TEXT("Sent ping to server: %s:%d"), *ServerInfo.IPAddress, ServerInfo.Port);
 
     // Set up a timer to check for the pong response
-    GetWorld()->GetTimerManager().SetTimer(ResponseTimeoutHandle, this, &UEdgegapLatencySubsystem::ReceivePong, 0.1f, true);
+    GetWorld()->GetTimerManager().SetTimer(ResponseTimerHandle, this, &UEdgegapLatencySubsystem::ReceivePong, 0.1f, true);
 
     // Set a timeout in case no response is received
     GetWorld()->GetTimerManager().SetTimer(ResponseTimeoutHandle, [this]()
     {
+        ResponseTimerHandle.Invalidate();  // Stop the timer
         UE_LOG(LogTemp, Warning, TEXT("Ping to server timed out."));
         MoveToNextServer();
     }, 5.0f, false);  // Set the timeout to 5 seconds (adjust as necessary)
@@ -84,12 +91,11 @@ void UEdgegapLatencySubsystem::SendPingToServer(const FIPPortInfo& ServerInfo)
 
 void UEdgegapLatencySubsystem::ReceivePong()
 {
-    uint32 BufferSize = 1024;
     uint8 Buffer[1024];
 
     int32 BytesRead = 0;
     TSharedRef<FInternetAddr> Sender = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-    if (UDPSocket->RecvFrom(Buffer, BufferSize, BytesRead, *Sender))
+    if (UDPSocket->RecvFrom(Buffer, sizeof(Buffer), BytesRead, *Sender))
     {
         FString Response = FString(ANSI_TO_TCHAR(reinterpret_cast<const char*>(Buffer)));
         if (Response.Contains(TEXT("Ping")))
@@ -98,13 +104,19 @@ void UEdgegapLatencySubsystem::ReceivePong()
             double EndTime = FPlatformTime::Seconds();
             float Latency = (EndTime - StartTime) * 1000.0f; // Convert to milliseconds
 
-            UE_LOG(LogTemp, Log, TEXT("Received pong from server. Latency: %.2f ms"), Latency);
+            UE_LOG(LogTemp, Log, TEXT("Received pong from server. Latency: %f.2f ms"), Latency);
 
             // Store the latency in the corresponding server info
             ServersToTest[CurrentServerIndex].Latency = Latency;
 
             // Clear the timeout timer when a response is received
             GetWorld()->GetTimerManager().ClearTimer(ResponseTimeoutHandle);
+            GetWorld()->GetTimerManager().ClearTimer(ResponseTimerHandle);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Received an unexpected response: %s"), *Response);
+            return;
         }
     }
     else

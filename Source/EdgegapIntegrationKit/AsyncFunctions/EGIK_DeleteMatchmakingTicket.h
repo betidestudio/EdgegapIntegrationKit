@@ -18,7 +18,10 @@ struct FEGIK_DeleteMatchmakingRequest
 	FString TicketId;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-	FString MatchmakingURL;	
+	FString MatchmakingURL;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
+	FString AuthToken;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDeleteMatchmakingTicketResponse, const FEGIK_ErrorStruct&, Error);

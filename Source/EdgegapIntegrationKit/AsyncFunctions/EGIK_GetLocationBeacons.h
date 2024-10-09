@@ -52,7 +52,7 @@ class EDGEGAPINTEGRATIONKIT_API UEGIK_GetLocationBeacons : public UBlueprintAsyn
 public:
 
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"), Category = "Edgegap Integration Kit | Location")
-	static UEGIK_GetLocationBeacons* GetLocationBeacons(FString MatchmakingUrl);
+	static UEGIK_GetLocationBeacons* GetLocationBeacons(FString MatchmakingUrl, FString AuthToken);
 
 	void OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest, TSharedPtr<IHttpResponse> HttpResponse, bool bArg);
 	virtual void Activate() override;
@@ -65,4 +65,5 @@ public:
 
 private:
 	FString Var_MatchmakingUrl;
+	FString Var_AuthToken;
 };

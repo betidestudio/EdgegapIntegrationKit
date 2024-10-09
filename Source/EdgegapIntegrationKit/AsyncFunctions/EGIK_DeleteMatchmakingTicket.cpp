@@ -41,6 +41,7 @@ void UEGIK_DeleteMatchmakingTicket::Activate()
 	Request->SetVerb("DELETE");
 	Request->SetURL(Var_Request.MatchmakingURL + "/tickets/" + Var_Request.TicketId);
 	Request->SetHeader("Content-Type", "application/json");
+	Request->SetHeader("Authorization", Var_Request.AuthToken);
 	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_DeleteMatchmakingTicket::OnResponseReceived);
 	if(!Request->ProcessRequest())
 	{

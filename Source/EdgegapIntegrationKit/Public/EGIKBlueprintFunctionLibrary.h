@@ -200,10 +200,16 @@ struct FEGIK_CreateMatchmakingStruct
     FString Attributes;
 
     UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-    FString RealIp = "1.1.1.1";
+    FString RealIp = "";
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
+	FString PlayerIp = "";
 
     UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
     FString MatchmakingURL;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
+	FString AuthToken;
 };
 
 USTRUCT(BlueprintType)
