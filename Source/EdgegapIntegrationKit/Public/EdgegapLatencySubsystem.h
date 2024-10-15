@@ -59,7 +59,7 @@ private:
 	double StartTime;
 
 	TArray<FIPPortInfo> ServersToTest;
-	int32 CurrentServerIndex;
+	int32 CurrentServerIndex = -1;
 
 	bool InitializeSocket(int32 Port);
 

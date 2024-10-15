@@ -13,7 +13,7 @@ void UEdgegapLatencySubsystem::StartLatencyTestForMultipleServers(const TArray<F
     OnLatencyTestCompletedDelegate = OnLatencyTestCompleted;
     // Copy the server list and initialize the index
     ServersToTest = ServerList;
-    CurrentServerIndex = 0;
+    CurrentServerIndex = -1;
 
     if (ServersToTest.Num() > 0)
     {
