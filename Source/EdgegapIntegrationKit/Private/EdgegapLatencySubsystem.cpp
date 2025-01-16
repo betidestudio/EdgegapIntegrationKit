@@ -78,7 +78,7 @@ void UEdgegapLatencySubsystem::SendPingToServer(const FIPPortInfo& ServerInfo)
     UE_LOG(LogTemp, Log, TEXT("Sent ping to server: %s:%d"), *ServerInfo.IPAddress, ServerInfo.Port);
 
     // Set up a timer to check for the pong response
-    GetWorld()->GetTimerManager().SetTimer(ResponseTimerHandle, this, &UEdgegapLatencySubsystem::ReceivePong, 0.1f, true);
+    GetWorld()->GetTimerManager().SetTimer(ResponseTimerHandle, this, &UEdgegapLatencySubsystem::ReceivePong, 0.001f, true);
 
     // Set a timeout in case no response is received
     GetWorld()->GetTimerManager().SetTimer(ResponseTimeoutHandle, [this]()
