@@ -1055,7 +1055,15 @@ void FEdgegapSettingsDetails::PackageProject(const FName IniPlatformName)
 	// since it'll have a different name.
 	if (BuildTargetInfo && bIsProjectBuildTarget)
 	{
-		BuildCookRunParams += FString::Printf(TEXT(" -target=%s"), *FString::Printf(TEXT("%sServer"), FApp::GetProjectName()));
+		UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
+		if(EdgegapSettings->OverridableTargetName.IsEmpty())
+		{
+			BuildCookRunParams += FString::Printf(TEXT(" -target=%s"), *FString::Printf(TEXT("%sServer"), FApp::GetProjectName()));
+		}
+		else
+		{
+			BuildCookRunParams += FString::Printf(TEXT(" -target=%s"), *EdgegapSettings->OverridableTargetName);
+		}
 	}
 
 	// set the platform we are preparing content for
@@ -1184,7 +1192,15 @@ void FEdgegapSettingsDetails::PackageProject(const FName IniPlatformName)
 		}
 
 		EProjectPackagingBuildConfigurations BuildConfig = PlatformsSettings->GetBuildConfigurationForPlatform(IniPlatformName);
-		BuildConfig = EProjectPackagingBuildConfigurations::PPBC_Shipping;
+		UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
+		if(EdgegapSettings)
+		{
+			BuildConfig = EdgegapSettings->BuildConfiguration;
+		}
+		else
+		{
+			BuildConfig = EProjectPackagingBuildConfigurations::PPBC_Development;
+		}
 		const UProjectPackagingSettings::FConfigurationInfo& ConfigurationInfo = UProjectPackagingSettings::ConfigurationInfo[(int)BuildConfig];
 
 		BuildCookRunParams += FString::Printf(TEXT(" -server -noclient -serverconfig=%s"), LexToString(ConfigurationInfo.Configuration));

@@ -6,6 +6,7 @@
 #include "UObject/Object.h"
 #include "APIToken/APITokenSettings.h"
 #include "Engine/DeveloperSettings.h"
+#include "Settings/ProjectPackagingSettings.h"
 #include "EdgegapSettings.generated.h"
 
 UCLASS(config=EditorPerProjectUserSettings, defaultconfig, meta = (DisplayName = "Edgegap Plugin"))
@@ -33,6 +34,12 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, Category = "Docker Settings", DisplayName = "Docker Path")
 	FString DockerPath = "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe";
+
+	UPROPERTY(Config, EditAnywhere, Category = "Build Configurations", DisplayName = "Build Configurations")
+	EProjectPackagingBuildConfigurations BuildConfiguration = EProjectPackagingBuildConfigurations::PPBC_Development;
+	
+	UPROPERTY(Config, EditAnywhere, Category = "Build Configurations", DisplayName = "Build Configurations")
+	FString OverridableTargetName = FString::Printf(TEXT("%sServer"), FApp::GetProjectName());
 
 	UPROPERTY(Config, EditAnywhere, Category = "Application Info", Meta = (EditCondition = "bIsTokenVerified"), DisplayName = "Application Name")
 	FText ApplicationName;
