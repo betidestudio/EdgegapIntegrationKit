@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EGIKBlueprintFunctionLibrary.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Kismet/BlueprintAsyncActionBase.h"
@@ -29,10 +30,7 @@ struct FEGIK_MemberTicket
 	FString PlayerIp;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Group")
-	TArray<FEGIK_KeyValue> Attributes;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Group")
-	TArray<FEGIK_KeyValue> Beacons;
+	FString Attributes;
 };
 
 USTRUCT(BlueprintType)
@@ -53,7 +51,35 @@ struct FEGIK_CreateGroupTicketRequest
 	FString AuthToken;
 };
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FEGIK_CreateGroupMatchmakingTicketResponse, const FEGIK_MatchmakingResponse&, Response, const FEGIK_ErrorStruct&, Error);
+USTRUCT(BlueprintType)
+struct FEGIK_GroupMatchmakingResponse
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
+	FString TicketId;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
+	FString GameProfile;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
+	FString GroupId;
+	
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
+	FString IP;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
+	FEGIK_AssignmentStruct Assignment;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
+	FDateTime CreatedAt;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
+	FString Status;
+};
+
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FEGIK_CreateGroupMatchmakingTicketResponse, const TArray<FEGIK_GroupMatchmakingResponse>&, PlayerTickets, const FEGIK_ErrorStruct&, Error);
 
 UCLASS()
 class EDGEGAPINTEGRATIONKIT_API UEGIK_CreateGroupTicket : public UBlueprintAsyncActionBase

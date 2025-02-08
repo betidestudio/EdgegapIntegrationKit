@@ -12,56 +12,72 @@ UEGIK_CreateGroupTicket* UEGIK_CreateGroupTicket::CreateGroupTicket(const FEGIK_
 	return Node;
 }
 
-void UEGIK_CreateGroupTicket::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest,
-	TSharedPtr<IHttpResponse> HttpResponse, bool bArg)
+void UEGIK_CreateGroupTicket::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest, TSharedPtr<IHttpResponse> HttpResponse, bool bArg)
 {
-	FEGIK_MatchmakingResponse Response;
+	TArray<FEGIK_GroupMatchmakingResponse> ResponseArray;
 	if(HttpResponse.IsValid())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Response: %s"), *HttpResponse->GetContentAsString());
 		if(EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
 		{
 			TSharedPtr<FJsonObject> JsonObject;
 			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(HttpResponse->GetContentAsString());
 			if(FJsonSerializer::Deserialize(Reader, JsonObject))
 			{
-				Response.TicketId = JsonObject->GetStringField(TEXT("id"));
-				Response.GameProfile = JsonObject->GetStringField(TEXT("game_profile"));
-				FDateTime::ParseIso8601(*JsonObject->GetStringField(TEXT("created_at")), Response.CreatedAt);
-				const TSharedPtr<FJsonObject>* AssignmentObject;
-				if (JsonObject->HasTypedField<EJson::Object>(TEXT("assignment")))
+				if(JsonObject->HasField(TEXT("player_tickets")))
 				{
-					// The assignment field exists and is an object
-					if (JsonObject->TryGetObjectField(TEXT("assignment"), AssignmentObject))
+					const TArray<TSharedPtr<FJsonValue>> TicketsArray = JsonObject->GetArrayField(TEXT("player_tickets"));
+					for (const TSharedPtr<FJsonValue>& TicketValue : TicketsArray)
 					{
-						// Deserialize the assignment object
-						Response.Assignment = FEGIK_AssignmentStruct(*AssignmentObject);
-					}
-					else
-					{
-						// The assignment field is either null or missing, so handle it as null
-						Response.Assignment = FEGIK_AssignmentStruct("null");
+						TSharedPtr<FJsonObject> TicketObject = TicketValue->AsObject();
+						if (TicketObject.IsValid())
+						{
+							FEGIK_GroupMatchmakingResponse Response;
+							if(TicketObject->HasField(TEXT("id")))
+							{
+								Response.TicketId = TicketObject->GetStringField(TEXT("id"));
+							}
+							if(TicketObject->HasField(TEXT("status")))
+							{
+								Response.Status = TicketObject->GetStringField(TEXT("status"));
+							}
+							if(TicketObject->HasField(TEXT("assignment")))
+							{
+								Response.Assignment = TicketObject->GetStringField(TEXT("assignment"));
+							}
+							if(TicketObject->HasField(TEXT("player_ip")))
+							{
+								Response.IP = TicketObject->GetStringField(TEXT("player_ip"));
+							}
+							if(TicketObject->HasField(TEXT("profile")))
+							{
+								Response.GameProfile = TicketObject->GetStringField(TEXT("profile"));
+							}
+							if(TicketObject->HasField(TEXT("group_id")))
+							{
+								Response.GroupId = TicketObject->GetStringField(TEXT("group_id"));
+							}
+							if(TicketObject->HasField(TEXT("created_at")))
+							{
+								FDateTime CreatedAt;
+								FDateTime::Parse(TicketObject->GetStringField(TEXT("created_at")), CreatedAt);
+								Response.CreatedAt = CreatedAt;
+							}
+							ResponseArray.Add(Response);
+						}
 					}
 				}
-				else
-				{
-					// The assignment field is either null or missing, so handle it as null
-					Response.Assignment = FEGIK_AssignmentStruct("null");
-				}
-				OnSuccess.Broadcast(Response, FEGIK_ErrorStruct());
+				OnSuccess.Broadcast(ResponseArray, FEGIK_ErrorStruct());
 			}
 			else
 			{
-				OnFailure.Broadcast(FEGIK_MatchmakingResponse(), FEGIK_ErrorStruct(0, "Failed to parse JSON"));
+				OnFailure.Broadcast(TArray<FEGIK_GroupMatchmakingResponse>(), FEGIK_ErrorStruct(0, "Failed to parse JSON"));
 			}
 		}
 		else
 		{
-			OnFailure.Broadcast(FEGIK_MatchmakingResponse(), FEGIK_ErrorStruct(HttpResponse->GetResponseCode(), HttpResponse->GetContentAsString()));
+			OnFailure.Broadcast(TArray<FEGIK_GroupMatchmakingResponse>(), FEGIK_ErrorStruct(HttpResponse->GetResponseCode(), HttpResponse->GetContentAsString()));
 		}
-	}
-	else
-	{
-		OnFailure.Broadcast(FEGIK_MatchmakingResponse(), FEGIK_ErrorStruct(0, "Failed to connect, likely the Matchmaker is down or the URL is incorrect or is not released"));
 	}
 }
 
@@ -82,23 +98,21 @@ void UEGIK_CreateGroupTicket::Activate()
 	for (const FEGIK_MemberTicket& Member : Var_Request.Members)
 	{
 		TSharedPtr<FJsonObject> MemberObject = MakeShareable(new FJsonObject);
-		MemberObject->SetStringField("player_ip", Member.PlayerIp);
+		if(!Member.PlayerIp.IsEmpty())
+		{
+			MemberObject->SetStringField("player_ip", Member.PlayerIp);
+		}
 		MemberObject->SetStringField("profile", Var_Request.ProfileId);
-
-		TSharedPtr<FJsonObject> AttributesObject = MakeShareable(new FJsonObject);
-		for (const FEGIK_KeyValue& Attribute : Member.Attributes)
+		TSharedPtr<FJsonObject> AttributesJsonObject;
+		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Member.Attributes);
+		if (FJsonSerializer::Deserialize(Reader, AttributesJsonObject) && AttributesJsonObject.IsValid())
 		{
-			AttributesObject->SetStringField(Attribute.Key, Attribute.Value);
+			MemberObject->SetObjectField(TEXT("attributes"), AttributesJsonObject);
 		}
-
-		TSharedPtr<FJsonObject> BeaconsObject = MakeShareable(new FJsonObject);
-		for (const FEGIK_KeyValue& Beacon : Member.Beacons)
+		else
 		{
-			BeaconsObject->SetNumberField(Beacon.Key, FCString::Atof(*Beacon.Value));
+			UE_LOG(LogTemp, Error, TEXT("Failed to parse attributes JSON string."));
 		}
-		AttributesObject->SetObjectField("beacons", BeaconsObject);
-		MemberObject->SetObjectField("attributes", AttributesObject);
-
 		MembersArray.Add(MakeShareable(new FJsonValueObject(MemberObject)));
 	}
 	JsonObject->SetArrayField("player_tickets", MembersArray);
@@ -107,7 +121,7 @@ void UEGIK_CreateGroupTicket::Activate()
 	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
 	FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
 	Request->SetContentAsString(JsonString);
-
+UE_LOG(LogTemp, Warning, TEXT("Request: %s"), *JsonString);
 	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_CreateGroupTicket::OnResponseReceived);
 	Request->ProcessRequest();
 }
