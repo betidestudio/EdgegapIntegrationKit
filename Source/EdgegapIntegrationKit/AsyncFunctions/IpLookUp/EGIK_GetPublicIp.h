@@ -17,7 +17,7 @@ class EDGEGAPINTEGRATIONKIT_API UEGIK_GetPublicIp : public UBlueprintAsyncAction
 public:
 	//Retrieve your public IP address.
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"), Category = "Edgegap Integration Kit | IpLookUp")
-	static UEGIK_GetPublicIp* GetIpInformation();
+	static UEGIK_GetPublicIp* GetPublicIp();
 
 	void OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest, TSharedPtr<IHttpResponse> HttpResponse, bool bArg);
 	virtual void Activate() override;

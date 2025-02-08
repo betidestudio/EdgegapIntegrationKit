@@ -51,35 +51,8 @@ struct FEGIK_CreateGroupTicketRequest
 	FString AuthToken;
 };
 
-USTRUCT(BlueprintType)
-struct FEGIK_GroupMatchmakingResponse
-{
-	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-	FString TicketId;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-	FString GameProfile;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-	FString GroupId;
-	
-	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-	FString IP;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-	FEGIK_AssignmentStruct Assignment;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-	FDateTime CreatedAt;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-	FString Status;
-};
-
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FEGIK_CreateGroupMatchmakingTicketResponse, const TArray<FEGIK_GroupMatchmakingResponse>&, PlayerTickets, const FEGIK_ErrorStruct&, Error);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FEGIK_CreateGroupMatchmakingTicketResponse, const TArray<FEGIK_MatchmakingResponse>&, PlayerTickets, const FEGIK_ErrorStruct&, Error);
 
 UCLASS()
 class EDGEGAPINTEGRATIONKIT_API UEGIK_CreateGroupTicket : public UBlueprintAsyncActionBase

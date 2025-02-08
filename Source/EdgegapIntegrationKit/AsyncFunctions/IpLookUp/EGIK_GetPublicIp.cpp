@@ -3,7 +3,7 @@
 
 #include "EGIK_GetPublicIp.h"
 
-UEGIK_GetPublicIp* UEGIK_GetPublicIp::GetIpInformation()
+UEGIK_GetPublicIp* UEGIK_GetPublicIp::GetPublicIp()
 {
 	UEGIK_GetPublicIp* Node = NewObject<UEGIK_GetPublicIp>();
 	return Node;

@@ -14,10 +14,9 @@ UEGIK_CreateGroupTicket* UEGIK_CreateGroupTicket::CreateGroupTicket(const FEGIK_
 
 void UEGIK_CreateGroupTicket::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest, TSharedPtr<IHttpResponse> HttpResponse, bool bArg)
 {
-	TArray<FEGIK_GroupMatchmakingResponse> ResponseArray;
+	TArray<FEGIK_MatchmakingResponse> ResponseArray;
 	if(HttpResponse.IsValid())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Response: %s"), *HttpResponse->GetContentAsString());
 		if(EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
 		{
 			TSharedPtr<FJsonObject> JsonObject;
@@ -32,7 +31,7 @@ void UEGIK_CreateGroupTicket::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRe
 						TSharedPtr<FJsonObject> TicketObject = TicketValue->AsObject();
 						if (TicketObject.IsValid())
 						{
-							FEGIK_GroupMatchmakingResponse Response;
+							FEGIK_MatchmakingResponse Response;
 							if(TicketObject->HasField(TEXT("id")))
 							{
 								Response.TicketId = TicketObject->GetStringField(TEXT("id"));
@@ -71,12 +70,12 @@ void UEGIK_CreateGroupTicket::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRe
 			}
 			else
 			{
-				OnFailure.Broadcast(TArray<FEGIK_GroupMatchmakingResponse>(), FEGIK_ErrorStruct(0, "Failed to parse JSON"));
+				OnFailure.Broadcast(TArray<FEGIK_MatchmakingResponse>(), FEGIK_ErrorStruct(0, "Failed to parse JSON"));
 			}
 		}
 		else
 		{
-			OnFailure.Broadcast(TArray<FEGIK_GroupMatchmakingResponse>(), FEGIK_ErrorStruct(HttpResponse->GetResponseCode(), HttpResponse->GetContentAsString()));
+			OnFailure.Broadcast(TArray<FEGIK_MatchmakingResponse>(), FEGIK_ErrorStruct(HttpResponse->GetResponseCode(), HttpResponse->GetContentAsString()));
 		}
 	}
 }
@@ -121,7 +120,11 @@ void UEGIK_CreateGroupTicket::Activate()
 	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
 	FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
 	Request->SetContentAsString(JsonString);
-UE_LOG(LogTemp, Warning, TEXT("Request: %s"), *JsonString);
 	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_CreateGroupTicket::OnResponseReceived);
-	Request->ProcessRequest();
+	if(!Request->ProcessRequest())
+	{
+		OnFailure.Broadcast(TArray<FEGIK_MatchmakingResponse>(), FEGIK_ErrorStruct(0, "Failed to process request"));
+		SetReadyToDestroy();
+		MarkAsGarbage();
+	}
 }
