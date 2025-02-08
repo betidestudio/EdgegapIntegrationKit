@@ -18,6 +18,7 @@ void UEGIK_CreateBackfill::OnResponseReceived(TSharedPtr<IHttpRequest> HttpReque
 	FEGIK_CreateBackFillResponse Response;
 	if (HttpResponse.IsValid())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Response: %s"), *HttpResponse->GetContentAsString());
 		if (EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
 		{
 			TSharedPtr<FJsonObject> JsonObject;
@@ -79,15 +80,27 @@ void UEGIK_CreateBackfill::Activate()
 	TSharedPtr<FJsonObject> TicketsObject = MakeShareable(new FJsonObject);
 	for (const auto& Ticket : Var_Request.Tickets)
 	{
-		TicketsObject->SetStringField(Ticket.Key, Ticket.Value);
+		TSharedPtr<FJsonObject> TicketJson;
+		TSharedRef<TJsonReader<>> TicketReader = TJsonReaderFactory<>::Create(Ticket.Value);
+    
+		if (FJsonSerializer::Deserialize(TicketReader, TicketJson) && TicketJson.IsValid())
+		{
+			TicketJson->SetStringField("id", Ticket.Key);
+			TicketsObject->SetObjectField(Ticket.Key, TicketJson);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("Failed to deserialize ticket JSON: %s"), *Ticket.Value);
+		}
 	}
 	JsonObject->SetObjectField("tickets", TicketsObject);
-
+	
 	FString JsonString;
 	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
 	FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
 	Request->SetContentAsString(JsonString);
 	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_CreateBackfill::OnResponseReceived);
+	UE_LOG(LogTemp, Warning, TEXT("Original Request: %s"), *JsonString);
 	if (!Request->ProcessRequest())
 	{
 		OnFailure.Broadcast(FEGIK_CreateBackFillResponse(), FEGIK_ErrorStruct(0, "Failed to process request"));

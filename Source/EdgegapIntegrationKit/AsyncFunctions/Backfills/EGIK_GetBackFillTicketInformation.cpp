@@ -21,6 +21,7 @@ void UEGIK_GetBackFillTicketInformation::OnResponseReceived(TSharedPtr<IHttpRequ
 	FEGIK_GetBackFillTicketInformationResponse Response;
 	if (HttpResponse.IsValid())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Response: %s"), *HttpResponse->GetContentAsString());
 		if (EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
 		{
 			TSharedPtr<FJsonObject> JsonObject;
