@@ -95,6 +95,11 @@ void UEdgegapLatencySubsystem::ReceivePong()
 
     int32 BytesRead = 0;
     TSharedRef<FInternetAddr> Sender = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
+    if (!UDPSocket)
+    {
+        UE_LOG(LogTemp, Error, TEXT("UDPSocket is null!"));
+        return;
+    }
     if (UDPSocket->RecvFrom(Buffer, sizeof(Buffer), BytesRead, *Sender))
     {
         FString Response = FString(ANSI_TO_TCHAR(reinterpret_cast<const char*>(Buffer)));
