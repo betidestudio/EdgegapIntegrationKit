@@ -44,7 +44,7 @@ void UEGIK_GetBackFillTicketInformation::OnResponseReceived(TSharedPtr<IHttpRequ
 				if (JsonObject->HasTypedField<EJson::Object>(TEXT("assigned_ticket")))
 				{
 					//Check if Assigned Ticket is Null
-					Response.AssignedTicket = JsonObject->GetObjectField(TEXT("assigned_ticket"));
+					Response.AssignedTicket = JsonObject->GetObjectField(TEXT("assigned_ticket")); 
 				}
 
 				OnSuccess.Broadcast(Response, FEGIK_ErrorStruct());
