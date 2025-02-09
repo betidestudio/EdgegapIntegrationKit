@@ -23,7 +23,7 @@ void UEGIK_CreateMatchmakingTicket::OnResponseReceived(TSharedPtr<IHttpRequest> 
 			if(FJsonSerializer::Deserialize(Reader, JsonObject))
 			{
 				Response.TicketId = JsonObject->GetStringField(TEXT("id"));
-				Response.GameProfile = JsonObject->GetStringField(TEXT("game_profile"));
+				Response.GameProfile = JsonObject->GetStringField(TEXT("profile"));
 				FDateTime::ParseIso8601(*JsonObject->GetStringField(TEXT("created_at")), Response.CreatedAt);
 				const TSharedPtr<FJsonObject>* AssignmentObject;
 				if (JsonObject->HasTypedField<EJson::Object>(TEXT("assignment")))

@@ -34,13 +34,13 @@ void UEGIK_CreateBackfill::OnResponseReceived(TSharedPtr<IHttpRequest> HttpReque
 					TSharedPtr<FJsonObject> TicketsObject = JsonObject->GetObjectField(TEXT("tickets"));
 					for (const auto& TicketPair : TicketsObject->Values)
 					{
-						Response.Tickets.Add(TicketPair.Key, TicketPair.Value->AsString());
+						Response.Tickets.Add(TicketPair.Key, TicketPair.Value->AsObject());
 					}
 				}
 
 				if (JsonObject->HasField(TEXT("assigned_ticket")))
 				{
-					Response.AssignedTicket = JsonObject->GetStringField(TEXT("assigned_ticket"));
+					Response.AssignedTicket = JsonObject->GetObjectField(TEXT("assigned_ticket"));
 				}
 
 				OnSuccess.Broadcast(Response, FEGIK_ErrorStruct());

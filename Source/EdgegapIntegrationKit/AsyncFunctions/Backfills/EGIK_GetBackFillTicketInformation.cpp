@@ -31,21 +31,20 @@ void UEGIK_GetBackFillTicketInformation::OnResponseReceived(TSharedPtr<IHttpRequ
 				Response.Id = JsonObject->GetStringField(TEXT("id"));
 				Response.Profile = JsonObject->GetStringField(TEXT("profile"));
 				Response.Status = JsonObject->GetStringField(TEXT("status"));
-				Response.CreatedAt = JsonObject->GetStringField(TEXT("created_at"));
-				Response.GroupId = JsonObject->GetStringField(TEXT("group_id"));
 
 				if (JsonObject->HasField(TEXT("tickets")))
 				{
 					TSharedPtr<FJsonObject> TicketsObject = JsonObject->GetObjectField(TEXT("tickets"));
 					for (const auto& TicketPair : TicketsObject->Values)
 					{
-						Response.Tickets.Add(TicketPair.Key, TicketPair.Value->AsString());
+						Response.Tickets.Add(TicketPair.Key, TicketPair.Value->AsObject());
 					}
 				}
 
-				if (JsonObject->HasField(TEXT("assigned_ticket")))
+				if (JsonObject->HasTypedField<EJson::Object>(TEXT("assigned_ticket")))
 				{
-					Response.AssignedTicket = JsonObject->GetStringField(TEXT("assigned_ticket"));
+					//Check if Assigned Ticket is Null
+					Response.AssignedTicket = JsonObject->GetObjectField(TEXT("assigned_ticket"));
 				}
 
 				OnSuccess.Broadcast(Response, FEGIK_ErrorStruct());
@@ -71,7 +70,7 @@ void UEGIK_GetBackFillTicketInformation::Activate()
 	Super::Activate();
 	FHttpModule* Http = &FHttpModule::Get();
 	TSharedRef<IHttpRequest> Request = Http->CreateRequest();
-	Request->SetURL(Var_MatchmakingURL + "/backfill/" + Var_BackfillId);
+	Request->SetURL(Var_MatchmakingURL + "/backfills/" + Var_BackfillId);
 	Request->SetVerb("GET");
 	Request->SetHeader("Authorization", Var_AuthToken);
 	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_GetBackFillTicketInformation::OnResponseReceived);

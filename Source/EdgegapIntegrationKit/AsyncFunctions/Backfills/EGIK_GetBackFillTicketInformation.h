@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EGIKBlueprintFunctionLibrary.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Kismet/BlueprintAsyncActionBase.h"
@@ -20,19 +21,13 @@ struct FEGIK_GetBackFillTicketInformationResponse
 	FString Profile;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Backfill")
-	TMap<FString, FString> Tickets;
+	TMap<FString, FEGIK_MatchmakingResponse> Tickets;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Backfill")
 	FString Status;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Backfill")
-	FString AssignedTicket;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Backfill")
-	FString GroupId;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Backfill")
-	FString CreatedAt;
+	FEGIK_MatchmakingResponse AssignedTicket;
 	
 };
 

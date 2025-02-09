@@ -233,10 +233,77 @@ struct FEGIK_MatchmakingResponse
 	FEGIK_AssignmentStruct Assignment;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
+	FString Attributes;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
 	FDateTime CreatedAt;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
 	FString Status;
+
+	FEGIK_MatchmakingResponse()
+	{
+		TicketId = "";
+		GameProfile = "";
+		GroupId = "";
+		IP = "";
+		Attributes = "";
+		Status = "";
+	}
+	FEGIK_MatchmakingResponse(TSharedPtr<FJsonObject> JsonObject)
+	{
+		if (JsonObject.IsValid())
+		{
+			if(JsonObject->HasField(TEXT("id")))
+			{
+				TicketId = JsonObject->GetStringField(TEXT("id"));
+			}
+			if(JsonObject->HasField(TEXT("profile")))
+			{
+				GameProfile = JsonObject->GetStringField(TEXT("profile"));
+			}
+			if(JsonObject->HasField(TEXT("group_id")))
+			{
+				GroupId = JsonObject->GetStringField(TEXT("group_id"));
+			}
+			if(JsonObject->HasField(TEXT("player_ip")))
+			{
+				IP = JsonObject->GetStringField(TEXT("player_ip"));
+			}
+			if(JsonObject->HasField(TEXT("status")))
+			{
+				Status = JsonObject->GetStringField(TEXT("status"));
+			}
+			if(JsonObject->HasField(TEXT("created_at")))
+			{
+				FDateTime::ParseIso8601(*JsonObject->GetStringField(TEXT("created_at")), CreatedAt);
+			}
+			if(JsonObject->HasField(TEXT("assignment")))
+			{
+				TSharedPtr<FJsonObject> AssignmentJson = JsonObject->GetObjectField(TEXT("assignment"));
+				if (AssignmentJson.IsValid())
+				{
+					Assignment = FEGIK_AssignmentStruct(AssignmentJson);
+				}
+			}
+			if (JsonObject->HasField(TEXT("attributes")))
+			{
+				if (JsonObject->HasTypedField<EJson::String>(TEXT("attributes")))
+				{
+					Attributes = JsonObject->GetStringField(TEXT("attributes"));
+				}
+				else if (JsonObject->HasTypedField<EJson::Object>(TEXT("attributes")))
+				{
+					TSharedPtr<FJsonObject> AttributesJson = JsonObject->GetObjectField(TEXT("attributes"));
+					if (AttributesJson.IsValid())
+					{
+						TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Attributes);
+						FJsonSerializer::Serialize(AttributesJson.ToSharedRef(), Writer);
+					}
+				}
+			}
+		}
+	}
 };
 
 USTRUCT(BlueprintType)
@@ -877,4 +944,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit")
 	static void GetEnvironmentVariable(FString Key, FString& Value);
+
+	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit")
+	static TArray<FString> ConvertJsonArrayToStringArray(const FString& JsonArray);
 };

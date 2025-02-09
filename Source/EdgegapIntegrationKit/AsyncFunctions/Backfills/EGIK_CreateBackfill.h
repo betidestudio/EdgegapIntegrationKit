@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EGIKBlueprintFunctionLibrary.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Kismet/BlueprintAsyncActionBase.h"
@@ -45,13 +46,13 @@ struct FEGIK_CreateBackFillResponse
 	FString Profile;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Backfill")
-	TMap<FString, FString> Tickets;
+	TMap<FString, FEGIK_MatchmakingResponse> Tickets;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Backfill")
 	FString Status;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Backfill")
-	FString AssignedTicket;
+	FEGIK_MatchmakingResponse AssignedTicket;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FCreateBackfillResponse, const FEGIK_CreateBackFillResponse&, Response, const FEGIK_ErrorStruct&, Error);

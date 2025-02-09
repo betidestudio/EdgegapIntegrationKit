@@ -36,3 +36,21 @@ void UEGIKBlueprintFunctionLibrary::GetEnvironmentVariable(FString Key, FString&
 {
 	Value = FPlatformMisc::GetEnvironmentVariable(*Key);
 }
+
+TArray<FString> UEGIKBlueprintFunctionLibrary::ConvertJsonArrayToStringArray(const FString& JsonArray)
+{
+	TArray<FString> StringArray;
+	TSharedPtr<FJsonValue> JsonValue;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonArray);
+	if (FJsonSerializer::Deserialize(Reader, JsonValue))
+	{
+		if (JsonValue->Type == EJson::Array)
+		{
+			for (TSharedPtr<FJsonValue> Value : JsonValue->AsArray())
+			{
+				StringArray.Add(Value->AsString());
+			}
+		}
+	}
+	return StringArray;
+}
