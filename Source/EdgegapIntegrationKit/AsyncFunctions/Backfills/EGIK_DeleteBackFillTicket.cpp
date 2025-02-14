@@ -43,7 +43,8 @@ void UEGIK_DeleteBackFillTicket::Activate()
 	TSharedRef<IHttpRequest> Request = Http->CreateRequest();
 	Request->SetVerb("DELETE");
 	Request->SetURL(Var_MatchmakingURL + "/backfills/" + Var_BackfillId);
-	Request->SetHeader("Authorization", "Bearer " + Var_AuthToken);
+	Request->SetHeader("Content-Type", "application/json");
+	Request->SetHeader("Authorization", Var_AuthToken);
 	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_DeleteBackFillTicket::OnResponseReceived);
 	if(!Request->ProcessRequest())
 	{
