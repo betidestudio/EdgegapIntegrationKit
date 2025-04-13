@@ -6,6 +6,8 @@
 #include "APIToken/APITokenSettingsCustomization.h"
 #include "UObject/Package.h"
 #include "Features/IModularFeatures.h"
+
+#define LOCTEXT_NAMESPACE "EdgegapModule"
 	
 IMPLEMENT_MODULE(Edgegap, Edgegap);
 
@@ -177,3 +179,5 @@ bool Edgegap::Can_OpenSettings()
 {
     return bCanOpenSettings;
 }
+
+#undef LOCTEXT_NAMESPACE

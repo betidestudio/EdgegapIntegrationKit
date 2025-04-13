@@ -8,7 +8,7 @@
 #include "Widgets/Input/SButton.h"
 #include "JsonObjectConverter.h"
 #include "Widgets/SBoxPanel.h"
-#define LOCTEXT_NAMESPACE "APITokenSettingsCustomization"
+#define LOCTEXT_NAMESPACE "EdgegapModule"
 
 FAPITokenSettingsCustomization::FAPITokenSettingsCustomization()
 {
@@ -80,3 +80,5 @@ void FAPITokenSettingsCustomization::CustomizeHeader(TSharedRef<IPropertyHandle>
 void FAPITokenSettingsCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, class IDetailChildrenBuilder &StructBuilder, IPropertyTypeCustomizationUtils &StructCustomizationUtils)
 {
 }
+
+#undef LOCTEXT_NAMESPACE

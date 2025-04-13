@@ -87,7 +87,7 @@
 
 DEFINE_LOG_CATEGORY(EdgegapLog);
 
-#define LOCTEXT_NAMESPACE "EdgegapLog"
+#define LOCTEXT_NAMESPACE "EdgegapModule"
 
 #define EDGEGAP_API_URL "https://api.edgegap.com/"
 
