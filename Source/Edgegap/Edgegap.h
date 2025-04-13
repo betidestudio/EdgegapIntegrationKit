@@ -14,7 +14,7 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "ISettingsModule.h"
 
-// LOCTEXT_NAMESPACE defined in .cpp file
+#define LOCTEXT_NAMESPACE "EdgegapModule"
 
 #define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(Content(RelativePath, ".png"), __VA_ARGS__)
 static FString Content(FString RelativePath, FString Extension)

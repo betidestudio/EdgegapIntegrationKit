@@ -26,6 +26,26 @@ Here're some of the project's best features:
 *   Easy Integration: Simple setup and configuration with the kit, allowing you to focus on developing your game rather than making API calls.
 *   Addon Integration: Supports EOS Integration Kit for Epic Online Services and Steam Integration Kit for seamless integration with the Steam platform.
 
+<h2>📝 Changelog</h2>
+
+### Version 1.7 (Latest) - 2025-04-13
+
+#### Breaking Changes:
+- Updated to support Edgegap API v2.1.0 changes
+- Added support for team ID in ticket assignments
+- Updated Backfill API request structure (moved `attributes.deployment_request_id` to `attributes.assignment.request_id`)
+- Added environment variable helpers for MM_MATCH_PROFILE and MM_EXPANSION_STAGE
+- Updated ticket deletion handling to support 409 Conflict response code
+
+#### Improvements:
+- Added support for additional port configurations in project settings
+- Added support for default environment variables in project settings
+- Added GetGroupPlayerMapping function for retrieving player IDs by group ID
+- Added GetExpansionStage function to get expansion stage information
+- Added GetMatchProfileName function to get match profile name
+- Fixed Dockerfile modification issue
+- Fixed compiler warnings with LOCTEXT_NAMESPACE definitions
+
 <h2>🛠️ Installation Steps:</h2>
 
 Please check the docs for updated Installation Steps

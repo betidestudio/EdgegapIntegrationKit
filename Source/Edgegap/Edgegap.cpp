@@ -7,7 +7,7 @@
 #include "UObject/Package.h"
 #include "Features/IModularFeatures.h"
 
-#define LOCTEXT_NAMESPACE "EdgegapModule"
+// LOCTEXT_NAMESPACE defined in header file
 	
 IMPLEMENT_MODULE(Edgegap, Edgegap);
 
