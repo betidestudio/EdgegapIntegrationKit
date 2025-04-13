@@ -74,9 +74,38 @@ void UEGIK_CreateBackfill::Activate()
 	Request->SetHeader("Authorization", Var_Request.AuthToken);
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 	JsonObject->SetStringField("profile", Var_Request.Profile);
+	
+	// Create attributes object with updated structure (attributes.assignment.request_id)
 	TSharedPtr<FJsonObject> AttributesObject = MakeShareable(new FJsonObject);
-	AttributesObject->SetStringField("deployment_request_id", Var_Request.DeploymentRequestID);
+	TSharedPtr<FJsonObject> AssignmentObject = MakeShareable(new FJsonObject);
+	AssignmentObject->SetStringField("request_id", Var_Request.DeploymentRequestID);
+	
+	// Add assignment details if provided
+	if (!Var_Request.AssignmentDetails.IsEmpty())
+	{
+		TSharedPtr<FJsonObject> FullAssignmentJson;
+		TSharedRef<TJsonReader<>> AssignmentReader = TJsonReaderFactory<>::Create(Var_Request.AssignmentDetails);
+		if (FJsonSerializer::Deserialize(AssignmentReader, FullAssignmentJson) && FullAssignmentJson.IsValid())
+		{
+			// Merge additional assignment details with request_id
+			for (const auto& Field : FullAssignmentJson->Values)
+			{
+				if (Field.Key != "request_id") // Don't overwrite request_id
+				{
+					AssignmentObject->SetField(Field.Key, Field.Value);
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("Failed to deserialize assignment details JSON: %s"), *Var_Request.AssignmentDetails);
+		}
+	}
+	
+	AttributesObject->SetObjectField("assignment", AssignmentObject);
 	JsonObject->SetObjectField("attributes", AttributesObject);
+	
+	// Process tickets
 	TSharedPtr<FJsonObject> TicketsObject = MakeShareable(new FJsonObject);
 	for (const auto& Ticket : Var_Request.Tickets)
 	{

@@ -27,6 +27,10 @@ struct FEGIK_CreateBackFillRequest
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Backfill")
 	FString AttributesOverride;
 
+	/** Full assignment details in JSON format, required by new API */
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Backfill")
+	FString AssignmentDetails;
+
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
 	FString MatchmakingURL;
 

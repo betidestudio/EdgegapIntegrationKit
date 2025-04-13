@@ -227,6 +227,12 @@ struct FEGIK_MatchmakingResponse
 	FString GroupId;
 	
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
+	FString TeamId;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
+	FString ExpansionStage;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
 	FString IP;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
@@ -246,6 +252,8 @@ struct FEGIK_MatchmakingResponse
 		TicketId = "";
 		GameProfile = "";
 		GroupId = "";
+		TeamId = "";
+		ExpansionStage = "";
 		IP = "";
 		Attributes = "";
 		Status = "";
@@ -265,6 +273,14 @@ struct FEGIK_MatchmakingResponse
 			if(JsonObject->HasField(TEXT("group_id")))
 			{
 				GroupId = JsonObject->GetStringField(TEXT("group_id"));
+			}
+			if(JsonObject->HasField(TEXT("team_id")))
+			{
+				TeamId = JsonObject->GetStringField(TEXT("team_id"));
+			}
+			if(JsonObject->HasField(TEXT("expansion_stage")))
+			{
+				ExpansionStage = JsonObject->GetStringField(TEXT("expansion_stage"));
 			}
 			if(JsonObject->HasField(TEXT("player_ip")))
 			{
@@ -944,6 +960,31 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit")
 	static void GetEnvironmentVariable(FString Key, FString& Value);
+
+	/**
+	 * Get player group mapping from environment variables
+	 * @param GroupID - The group ID to get player mapping for
+	 * @param PlayerIDs - Array of player IDs in the group
+	 * @return True if group ID was found and mapping was retrieved
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit")
+	static bool GetGroupPlayerMapping(const FString& GroupID, TArray<FString>& PlayerIDs);
+
+	/**
+	 * Get the expansion stage from environment variables (MM_EXPANSION_STAGE)
+	 * @param ExpansionStage - The expansion stage (e.g. "initial", "15", "30")
+	 * @return True if the expansion stage was found
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit")
+	static bool GetExpansionStage(FString& ExpansionStage);
+
+	/**
+	 * Get match profile name from environment variables (MM_MATCH_PROFILE)
+	 * @param ProfileName - The profile name
+	 * @return True if the profile name was found
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit") 
+	static bool GetMatchProfileName(FString& ProfileName);
 
 	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit")
 	static TArray<FString> ConvertJsonArrayToStringArray(const FString& JsonArray);

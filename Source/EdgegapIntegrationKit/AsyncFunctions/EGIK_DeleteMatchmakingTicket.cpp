@@ -16,13 +16,24 @@ void UEGIK_DeleteMatchmakingTicket::OnResponseReceived(TSharedPtr<IHttpRequest> 
 {
 	if(HttpResponse.IsValid())
 	{
-		if(EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
+		const int32 ResponseCode = HttpResponse->GetResponseCode();
+		
+		if(EHttpResponseCodes::IsOk(ResponseCode))
 		{
+			// 204 No Content indicates successful deletion
 			OnSuccess.Broadcast(FEGIK_ErrorStruct());
+		}
+		else if(ResponseCode == 409)
+		{
+			// 409 Conflict indicates the ticket cannot be deleted because deployment is starting
+			// This is expected behavior in the updated API
+			FString ErrorMessage = "Cannot delete ticket as deployment is starting. To replace leavers, use a Backfill issued by the server.";
+			OnFailure.Broadcast(FEGIK_ErrorStruct(409, ErrorMessage));
 		}
 		else
 		{
-			OnFailure.Broadcast(FEGIK_ErrorStruct(HttpResponse->GetResponseCode(), HttpResponse->GetContentAsString()));
+			// Any other error
+			OnFailure.Broadcast(FEGIK_ErrorStruct(ResponseCode, HttpResponse->GetContentAsString()));
 		}
 	}
 	else

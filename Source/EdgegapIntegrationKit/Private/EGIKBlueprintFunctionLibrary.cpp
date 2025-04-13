@@ -37,6 +37,64 @@ void UEGIKBlueprintFunctionLibrary::GetEnvironmentVariable(FString Key, FString&
 	Value = FPlatformMisc::GetEnvironmentVariable(*Key);
 }
 
+bool UEGIKBlueprintFunctionLibrary::GetGroupPlayerMapping(const FString& GroupID, TArray<FString>& PlayerIDs)
+{
+	// Look for group-to-player mapping in environment variables
+	// Format is expected to be a JSON object mapping group IDs to player ID arrays
+	FString GroupMappingJson;
+	GetEnvironmentVariable("MM_GROUP_MAPPING", GroupMappingJson);
+	
+	if (GroupMappingJson.IsEmpty())
+	{
+		return false;
+	}
+	
+	// Parse the JSON
+	TSharedPtr<FJsonObject> GroupMapping;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(GroupMappingJson);
+	if (!FJsonSerializer::Deserialize(Reader, GroupMapping) || !GroupMapping.IsValid())
+	{
+		return false;
+	}
+	
+	// Check if the group ID exists in the mapping
+	if (!GroupMapping->HasField(GroupID))
+	{
+		return false;
+	}
+	
+	// Get the player IDs array for this group
+	const TArray<TSharedPtr<FJsonValue>>* PlayerIDsArray;
+	if (!GroupMapping->TryGetArrayField(GroupID, PlayerIDsArray))
+	{
+		return false;
+	}
+	
+	// Convert to string array
+	PlayerIDs.Empty();
+	for (const TSharedPtr<FJsonValue>& Value : *PlayerIDsArray)
+	{
+		if (Value->Type == EJson::String)
+		{
+			PlayerIDs.Add(Value->AsString());
+		}
+	}
+	
+	return PlayerIDs.Num() > 0;
+}
+
+bool UEGIKBlueprintFunctionLibrary::GetExpansionStage(FString& ExpansionStage)
+{
+	GetEnvironmentVariable("MM_EXPANSION_STAGE", ExpansionStage);
+	return !ExpansionStage.IsEmpty();
+}
+
+bool UEGIKBlueprintFunctionLibrary::GetMatchProfileName(FString& ProfileName)
+{
+	GetEnvironmentVariable("MM_MATCH_PROFILE", ProfileName);
+	return !ProfileName.IsEmpty();
+}
+
 TArray<FString> UEGIKBlueprintFunctionLibrary::ConvertJsonArrayToStringArray(const FString& JsonArray)
 {
 	TArray<FString> StringArray;
