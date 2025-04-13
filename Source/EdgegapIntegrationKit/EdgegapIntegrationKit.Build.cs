@@ -20,24 +20,11 @@ public class EdgegapIntegrationKit : ModuleRules
     {
         PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-        PublicIncludePaths.AddRange(
-            new string[] {
-                // Add public include paths required here ...
-            }
-        );
-
-        PrivateIncludePaths.AddRange(
-            new string[] {
-                // Add other private include paths required here ...
-            }
-        );
-
         PublicDependencyModuleNames.AddRange(
             new string[]
             {
                 "Core",
                 "Json",
-                // Add other public dependencies that you statically link with here ...
             }
         );
 
@@ -53,14 +40,6 @@ public class EdgegapIntegrationKit : ModuleRules
                 "HTTP",
                 "Sockets",
                 "Networking"
-                // Add private dependencies that you statically link with here ...
-            }
-        );
-
-        DynamicallyLoadedModuleNames.AddRange(
-            new string[]
-            {
-                // Add any modules that your module loads dynamically here ...
             }
         );
 
@@ -69,36 +48,35 @@ public class EdgegapIntegrationKit : ModuleRules
         {
             string pluginDir = Path.GetFullPath(Path.Combine(ModuleDirectory, "..", ".."));
             string steamClientDir = Path.Combine(pluginDir, "Extras", "steamclient.so");
+            string steamAppIDPath = Path.Combine(pluginDir, "Extras", "steam_appid.txt");
             string dockerfilePath = Path.Combine(pluginDir, "Dockerfile");
 
+            // Handle steamclient.so
             if (File.Exists(steamClientDir))
             {
                 Console.WriteLine("EdgegapSteam: Steam client file exists at the specified source path.");
-
-                // Add runtime dependency
                 RuntimeDependencies.Add("$(TargetOutputDir)/steamclient.so", steamClientDir);
-
-                // Logic to add to Dockerfile
-                string logicToAdd = $@"
-RUN mkdir -p /home/ubuntu/.steam/sdk64
-RUN find /app -name steamclient.so -exec cp {{}} /home/ubuntu/.steam/sdk64/steamclient.so \;
-RUN chmod 755 /home/ubuntu/.steam/sdk64/steamclient.so
-";
-
-                UpdateDockerfile(dockerfilePath, logicToAdd);
             }
             else
             {
                 Console.WriteLine("EdgegapSteam: Steam client file does not exist. Removing related logic.");
+            }
 
-                // Remove Steam logic from Dockerfile if exists
-                RemoveSteamLogicFromDockerfile(dockerfilePath);
+            // Handle steam_appid.txt
+            if (File.Exists(steamAppIDPath))
+            {
+                string destinationPath = Path.Combine("$(TargetOutputDir)", "steam_appid.txt");
+                RuntimeDependencies.Add(destinationPath, steamAppIDPath);
+                Console.WriteLine("EdgegapSteam: steam_appid.txt copied to ShippingServer directory.");
+            }
+            else
+            {
+                Console.WriteLine("EdgegapSteam: steam_appid.txt not found in Extras folder. Skipping copy.");
             }
         }
         else
         {
-            Console.WriteLine("EdgegapSteam: Not a Linux platform or not with server code. Removing related logic.");
-
+            Console.WriteLine("EdgegapSteam: Not a Linux platform or not with server code. Skipping Steam integration.");
             // Remove Steam logic from Dockerfile if exists
             string dockerfilePath = Path.Combine(ProjectRoot, "Dockerfile");
             RemoveSteamLogicFromDockerfile(dockerfilePath);
