@@ -1740,6 +1740,21 @@ void FEdgegapSettingsDetails::CreateVersion(FString AppName, FString VersionName
 	JsonWriter->WriteValue("inject_context_env", true);
 	JsonWriter->WriteValue("force_cache", false);
 	JsonWriter->WriteValue("whitelisting_active", false);
+	
+	// Add default environment variables
+	if (EGSettings && EGSettings->DefaultEnvironmentVariables.Num() > 0)
+	{
+		JsonWriter->WriteArrayStart(TEXT("env_vars"));
+		for (const FEdgegapEnvironmentVariable& EnvVar : EGSettings->DefaultEnvironmentVariables)
+		{
+			JsonWriter->WriteObjectStart();
+			JsonWriter->WriteValue("key", EnvVar.Key);
+			JsonWriter->WriteValue("value", EnvVar.Value);
+			JsonWriter->WriteValue("is_hidden", EnvVar.bIsHidden);
+			JsonWriter->WriteObjectEnd();
+		}
+		JsonWriter->WriteArrayEnd();
+	}
 	if(EGSettings)
 	{
 		if(!EGSettings->EntrypointOverride.IsEmpty())
@@ -1753,15 +1768,31 @@ void FEdgegapSettingsDetails::CreateVersion(FString AppName, FString VersionName
 	}
 
 	JsonWriter->WriteArrayStart(TEXT("ports"));
+	
+	// Add default gameport
 	JsonWriter->WriteObjectStart();
-
 	JsonWriter->WriteValue("port", 7777);
 	JsonWriter->WriteValue("protocol", TEXT("TCP/UDP"));
 	JsonWriter->WriteValue("to_check", false);
 	JsonWriter->WriteValue("tls_upgrade", false);
 	JsonWriter->WriteValue("name", TEXT("gameport"));
-
 	JsonWriter->WriteObjectEnd();
+	
+	// Add additional ports from settings
+	if (EGSettings && EGSettings->AdditionalPorts.Num() > 0)
+	{
+		for (const FEdgegapPortConfig& PortConfig : EGSettings->AdditionalPorts)
+		{
+			JsonWriter->WriteObjectStart();
+			JsonWriter->WriteValue("port", PortConfig.Port);
+			JsonWriter->WriteValue("protocol", PortConfig.Protocol);
+			JsonWriter->WriteValue("to_check", PortConfig.bToCheck);
+			JsonWriter->WriteValue("tls_upgrade", PortConfig.bTLSUpgrade);
+			JsonWriter->WriteValue("name", PortConfig.Name);
+			JsonWriter->WriteObjectEnd();
+		}
+	}
+	
 	JsonWriter->WriteArrayEnd();
 
 	JsonWriter->WriteObjectEnd();

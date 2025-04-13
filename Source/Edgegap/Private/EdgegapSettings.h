@@ -9,6 +9,50 @@
 #include "Settings/ProjectPackagingSettings.h"
 #include "EdgegapSettings.generated.h"
 
+USTRUCT(BlueprintType)
+struct FEdgegapPortConfig
+{
+	GENERATED_BODY()
+
+	// The internal port number
+	UPROPERTY(Config, EditAnywhere, DisplayName = "Port Number")
+	int32 Port = 7777;
+
+	// The protocol for this port (TCP, UDP, TCP/UDP)
+	UPROPERTY(Config, EditAnywhere, DisplayName = "Protocol")
+	FString Protocol = TEXT("TCP/UDP");
+
+	// Whether to check this port
+	UPROPERTY(Config, EditAnywhere, DisplayName = "Check Port") 
+	bool bToCheck = false;
+
+	// Whether to upgrade to TLS
+	UPROPERTY(Config, EditAnywhere, DisplayName = "TLS Upgrade")
+	bool bTLSUpgrade = false;
+
+	// Name of the port
+	UPROPERTY(Config, EditAnywhere, DisplayName = "Port Name")
+	FString Name = TEXT("gameport");
+};
+
+USTRUCT(BlueprintType)
+struct FEdgegapEnvironmentVariable
+{
+	GENERATED_BODY()
+
+	// The environment variable key
+	UPROPERTY(Config, EditAnywhere, DisplayName = "Key")
+	FString Key;
+
+	// The environment variable value
+	UPROPERTY(Config, EditAnywhere, DisplayName = "Value")
+	FString Value;
+
+	// Whether this variable contains sensitive information
+	UPROPERTY(Config, EditAnywhere, DisplayName = "Is Hidden")
+	bool bIsHidden = false;
+};
+
 UCLASS(config=EditorPerProjectUserSettings, defaultconfig, meta = (DisplayName = "Edgegap Plugin"))
 class UEdgegapSettings : public UDeveloperSettings
 {
@@ -74,6 +118,14 @@ public:
 	//The Arguments to pass to the command
 	UPROPERTY(Config, EditAnywhere, Category = "Application Info|Extra Settings", Meta = (EditCondition = "bIsTokenVerified"), DisplayName = "Command Arguments")
 	FString CommandArguments;
+	
+	// Port configurations to include in every deployment
+	UPROPERTY(Config, EditAnywhere, Category = "Application Info|Ports and Environment", Meta = (EditCondition = "bIsTokenVerified"), DisplayName = "Additional Ports")
+	TArray<FEdgegapPortConfig> AdditionalPorts;
+	
+	// Default environment variables to include in every deployment
+	UPROPERTY(Config, EditAnywhere, Category = "Application Info|Ports and Environment", Meta = (EditCondition = "bIsTokenVerified"), DisplayName = "Default Environment Variables")
+	TArray<FEdgegapEnvironmentVariable> DefaultEnvironmentVariables;
 
 	UPROPERTY(Config, EditAnywhere, Category = "Container Registry")
 	bool bUseCustomContainerRegistry = false;
