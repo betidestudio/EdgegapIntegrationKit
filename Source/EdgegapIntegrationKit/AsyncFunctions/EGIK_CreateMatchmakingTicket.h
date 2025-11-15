@@ -31,6 +31,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Matchmaking")
 	FCreateMatchmakingTicketResponse OnFailure;
 
+	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Matchmaking")
+	FCreateMatchmakingTicketResponse OnRateLimited;
+
 private:
 	FEGIK_CreateMatchmakingStruct Var_MatchmakingStruct;
 };

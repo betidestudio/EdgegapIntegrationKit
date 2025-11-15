@@ -73,6 +73,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Group")
 	FEGIK_CreateGroupMatchmakingTicketResponse OnFailure;
 
+	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Group")
+	FEGIK_CreateGroupMatchmakingTicketResponse OnRateLimited;
+
 private:
 	FEGIK_CreateGroupTicketRequest Var_Request;
 	

@@ -23,6 +23,11 @@ void UEGIK_DeleteMatchmakingTicket::OnResponseReceived(TSharedPtr<IHttpRequest> 
 			// 204 No Content indicates successful deletion
 			OnSuccess.Broadcast(FEGIK_ErrorStruct());
 		}
+		else if(ResponseCode == 429)
+		{
+			// 429 Too Many Requests - Rate limiting response
+			OnRateLimited.Broadcast(FEGIK_ErrorStruct(429, HttpResponse->GetContentAsString()));
+		}
 		else if(ResponseCode == 409)
 		{
 			// 409 Conflict indicates the ticket cannot be deleted because deployment is starting
