@@ -43,6 +43,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Matchmaking")
 	FDeleteMatchmakingTicketResponse OnFailure;
+
+	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Matchmaking")
+	FDeleteMatchmakingTicketResponse OnRateLimited;
 	
 private:
 	FEGIK_DeleteMatchmakingRequest Var_Request;

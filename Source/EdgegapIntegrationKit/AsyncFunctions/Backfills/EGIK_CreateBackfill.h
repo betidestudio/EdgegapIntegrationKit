@@ -57,6 +57,13 @@ struct FEGIK_CreateBackFillResponse
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Backfill")
 	FEGIK_MatchmakingResponse AssignedTicket;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Backfill")
+	FEGIK_AssignmentStruct Assignment;
+
+	/** Raw JSON string of attributes.assignment for flexible handling of variable structures */
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Backfill")
+	FString AssignmentDetailsJson;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FCreateBackfillResponse, const FEGIK_CreateBackFillResponse&, Response, const FEGIK_ErrorStruct&, Error);
@@ -77,6 +84,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Backfill")
 	FCreateBackfillResponse OnFailure;
+
+	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Backfill")
+	FCreateBackfillResponse OnRateLimited;
 
 	void OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest, TSharedPtr<IHttpResponse> HttpResponse, bool bArg);
 	virtual void Activate() override;

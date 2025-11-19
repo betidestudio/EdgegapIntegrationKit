@@ -43,6 +43,7 @@ Here're some of the project's best features:
 - Added GetGroupPlayerMapping function for retrieving player IDs by group ID
 - Added GetExpansionStage function to get expansion stage information
 - Added GetMatchProfileName function to get match profile name
+- Added AssignmentDetails field to Backfills creation blueprint for full assignment details support in JSON format
 - Fixed Dockerfile modification issue
 - Fixed compiler warnings with LOCTEXT_NAMESPACE definitions
 

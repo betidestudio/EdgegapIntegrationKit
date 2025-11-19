@@ -17,7 +17,8 @@ void UEGIK_CreateGroupTicket::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRe
 	TArray<FEGIK_MatchmakingResponse> ResponseArray;
 	if(HttpResponse.IsValid())
 	{
-		if(EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
+		const int32 ResponseCode = HttpResponse->GetResponseCode();
+		if(EHttpResponseCodes::IsOk(ResponseCode))
 		{
 			TSharedPtr<FJsonObject> JsonObject;
 			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(HttpResponse->GetContentAsString());
@@ -73,9 +74,14 @@ void UEGIK_CreateGroupTicket::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRe
 				OnFailure.Broadcast(TArray<FEGIK_MatchmakingResponse>(), FEGIK_ErrorStruct(0, "Failed to parse JSON"));
 			}
 		}
+		else if(ResponseCode == 429)
+		{
+			// 429 Too Many Requests - Rate limiting response
+			OnRateLimited.Broadcast(TArray<FEGIK_MatchmakingResponse>(), FEGIK_ErrorStruct(429, HttpResponse->GetContentAsString()));
+		}
 		else
 		{
-			OnFailure.Broadcast(TArray<FEGIK_MatchmakingResponse>(), FEGIK_ErrorStruct(HttpResponse->GetResponseCode(), HttpResponse->GetContentAsString()));
+			OnFailure.Broadcast(TArray<FEGIK_MatchmakingResponse>(), FEGIK_ErrorStruct(ResponseCode, HttpResponse->GetContentAsString()));
 		}
 	}
 }

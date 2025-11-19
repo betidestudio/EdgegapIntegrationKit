@@ -19,7 +19,8 @@ void UEGIK_CreateBackfill::OnResponseReceived(TSharedPtr<IHttpRequest> HttpReque
 	if (HttpResponse.IsValid())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Response: %s"), *HttpResponse->GetContentAsString());
-		if (EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
+		const int32 ResponseCode = HttpResponse->GetResponseCode();
+		if (EHttpResponseCodes::IsOk(ResponseCode))
 		{
 			TSharedPtr<FJsonObject> JsonObject;
 			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(HttpResponse->GetContentAsString());
@@ -43,6 +44,42 @@ void UEGIK_CreateBackfill::OnResponseReceived(TSharedPtr<IHttpRequest> HttpReque
 					Response.AssignedTicket = JsonObject->GetObjectField(TEXT("assigned_ticket"));
 				}
 
+				// Parse assignment details from attributes.assignment
+				const TSharedPtr<FJsonObject>* AttributesObject;
+				if (JsonObject->TryGetObjectField(TEXT("attributes"), AttributesObject))
+				{
+					const TSharedPtr<FJsonObject>* AssignmentObject;
+					if ((*AttributesObject)->HasTypedField<EJson::Object>(TEXT("assignment")))
+					{
+						if ((*AttributesObject)->TryGetObjectField(TEXT("assignment"), AssignmentObject))
+						{
+							// Store raw JSON string for flexible handling of variable structures
+							FString AssignmentJsonString;
+							TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&AssignmentJsonString);
+							FJsonSerializer::Serialize((*AssignmentObject).ToSharedRef(), Writer);
+							Response.AssignmentDetailsJson = AssignmentJsonString;
+							
+							// Try to parse into structured format (will gracefully handle missing fields)
+							Response.Assignment = FEGIK_AssignmentStruct(*AssignmentObject);
+						}
+						else
+						{
+							Response.Assignment = FEGIK_AssignmentStruct("null");
+							Response.AssignmentDetailsJson = "";
+						}
+					}
+					else
+					{
+						Response.Assignment = FEGIK_AssignmentStruct("null");
+						Response.AssignmentDetailsJson = "";
+					}
+				}
+				else
+				{
+					Response.Assignment = FEGIK_AssignmentStruct("null");
+					Response.AssignmentDetailsJson = "";
+				}
+
 				OnSuccess.Broadcast(Response, FEGIK_ErrorStruct());
 			}
 			else
@@ -50,9 +87,14 @@ void UEGIK_CreateBackfill::OnResponseReceived(TSharedPtr<IHttpRequest> HttpReque
 				OnFailure.Broadcast(FEGIK_CreateBackFillResponse(), FEGIK_ErrorStruct(0, "Failed to parse JSON"));
 			}
 		}
+		else if(ResponseCode == 429)
+		{
+			// 429 Too Many Requests - Rate limiting response
+			OnRateLimited.Broadcast(FEGIK_CreateBackFillResponse(), FEGIK_ErrorStruct(429, HttpResponse->GetContentAsString()));
+		}
 		else
 		{
-			OnFailure.Broadcast(FEGIK_CreateBackFillResponse(), FEGIK_ErrorStruct(HttpResponse->GetResponseCode(), HttpResponse->GetContentAsString()));
+			OnFailure.Broadcast(FEGIK_CreateBackFillResponse(), FEGIK_ErrorStruct(ResponseCode, HttpResponse->GetContentAsString()));
 		}
 	}
 	else

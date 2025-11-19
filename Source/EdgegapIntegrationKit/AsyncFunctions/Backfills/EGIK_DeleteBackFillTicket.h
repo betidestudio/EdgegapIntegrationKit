@@ -29,6 +29,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Backfill")
 	FDeleteBackFillTicketResponse OnFailure;
 
+	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Backfill")
+	FDeleteBackFillTicketResponse OnRateLimited;
+
 private:
 	FString Var_BackfillId;
 	FString Var_MatchmakingURL;

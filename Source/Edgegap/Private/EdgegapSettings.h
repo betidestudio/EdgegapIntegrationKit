@@ -15,23 +15,23 @@ struct FEdgegapPortConfig
 	GENERATED_BODY()
 
 	// The internal port number
-	UPROPERTY(Config, EditAnywhere, DisplayName = "Port Number")
+	UPROPERTY(Config, EditAnywhere, Category = "Port Config", DisplayName = "Port Number")
 	int32 Port = 7777;
 
 	// The protocol for this port (TCP, UDP, TCP/UDP)
-	UPROPERTY(Config, EditAnywhere, DisplayName = "Protocol")
+	UPROPERTY(Config, EditAnywhere, Category = "Port Config", DisplayName = "Protocol")
 	FString Protocol = TEXT("TCP/UDP");
 
 	// Whether to check this port
-	UPROPERTY(Config, EditAnywhere, DisplayName = "Check Port") 
+	UPROPERTY(Config, EditAnywhere, Category = "Port Config", DisplayName = "Check Port") 
 	bool bToCheck = false;
 
 	// Whether to upgrade to TLS
-	UPROPERTY(Config, EditAnywhere, DisplayName = "TLS Upgrade")
+	UPROPERTY(Config, EditAnywhere, Category = "Port Config", DisplayName = "TLS Upgrade")
 	bool bTLSUpgrade = false;
 
 	// Name of the port
-	UPROPERTY(Config, EditAnywhere, DisplayName = "Port Name")
+	UPROPERTY(Config, EditAnywhere, Category = "Port Config", DisplayName = "Port Name")
 	FString Name = TEXT("gameport");
 };
 
@@ -41,15 +41,15 @@ struct FEdgegapEnvironmentVariable
 	GENERATED_BODY()
 
 	// The environment variable key
-	UPROPERTY(Config, EditAnywhere, DisplayName = "Key")
+	UPROPERTY(Config, EditAnywhere, Category = "Environment Variable", DisplayName = "Key")
 	FString Key;
 
 	// The environment variable value
-	UPROPERTY(Config, EditAnywhere, DisplayName = "Value")
+	UPROPERTY(Config, EditAnywhere, Category = "Environment Variable", DisplayName = "Value")
 	FString Value;
 
 	// Whether this variable contains sensitive information
-	UPROPERTY(Config, EditAnywhere, DisplayName = "Is Hidden")
+	UPROPERTY(Config, EditAnywhere, Category = "Environment Variable", DisplayName = "Is Hidden")
 	bool bIsHidden = false;
 };
 

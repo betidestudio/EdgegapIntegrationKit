@@ -28,6 +28,13 @@ struct FEGIK_GetBackFillTicketInformationResponse
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Backfill")
 	FEGIK_MatchmakingResponse AssignedTicket;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Backfill")
+	FEGIK_AssignmentStruct Assignment;
+
+	/** Raw JSON string of attributes.assignment for flexible handling of variable structures */
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Backfill")
+	FString AssignmentDetailsJson;
 	
 };
 
@@ -50,6 +57,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Backfill")
 	FGetBackFillTicketInformationResponse OnFailure;
+
+	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Backfill")
+	FGetBackFillTicketInformationResponse OnRateLimited;
 
 private:
 	FString Var_BackfillId;
