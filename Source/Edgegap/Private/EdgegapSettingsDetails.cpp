@@ -1037,6 +1037,9 @@ void FEdgegapSettingsDetails::PackageProject(const FName IniPlatformName)
 	// this may delete UProjectPackagingSettings , don't hold it across this call
 	FEdgegapSettingsDetails::SaveAll();
 
+	// Re-get PackagingSettings after SaveAll() as it may have been invalidated
+	UProjectPackagingSettings* PackagingSettingsAfterSave = GetMutableDefault<UProjectPackagingSettings>();
+
 	// basic BuildCookRun params we always want
 	FString BuildCookRunParams = FString::Printf(TEXT("-nop4 -utf8output %s -cook "), GetUATCompilationFlags());
 
@@ -1047,8 +1050,17 @@ void FEdgegapSettingsDetails::PackageProject(const FName IniPlatformName)
 		BuildCookRunParams += FString::Printf(TEXT(" -project=\"%s\""), *ProjectPath);
 	}
 
+	// Get build target info - in UE 5.7, use PackagingSettings instead of PlatformsSettings
+	const FTargetInfo* BuildTargetInfo = PackagingSettingsAfterSave->GetBuildTargetInfo();
 	bool bIsProjectBuildTarget = false;
-	const FTargetInfo* BuildTargetInfo = PlatformsSettings->GetBuildTargetInfoForPlatform(IniPlatformName, bIsProjectBuildTarget);
+	
+	// Check if this is a project build target (not engine target)
+	if (BuildTargetInfo)
+	{
+		FString ProjectDir = FPaths::GetPath(FPaths::GetProjectFilePath());
+		FString TargetPath = BuildTargetInfo->Path;
+		bIsProjectBuildTarget = FPaths::IsUnderDirectory(TargetPath, ProjectDir);
+	}
 
 	// Only add the -Target=... argument for code projects. Content projects will return UnrealGame/UnrealClient/UnrealServer here, but
 	// may need a temporary target generated to enable/disable plugins. Specifying -Target in these cases will cause packaging to fail,
@@ -1078,7 +1090,7 @@ void FEdgegapSettingsDetails::PackageProject(const FName IniPlatformName)
 	}
 
 	// optional settings
-	if (PackagingSettings->bSkipEditorContent)
+	if (PackagingSettingsAfterSave->bSkipEditorContent)
 	{
 		BuildCookRunParams += TEXT(" -SkipCookingEditorContent");
 	}
@@ -1126,72 +1138,73 @@ void FEdgegapSettingsDetails::PackageProject(const FName IniPlatformName)
 		BuildCookRunParams += TEXT(" -stage -archive -package");
 
 		const ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(PlatformInfo->Name);
-		if (ShouldBuildProject(PackagingSettings, TargetPlatform))
+		if (ShouldBuildProject(PackagingSettingsAfterSave, TargetPlatform))
 		{
 			BuildCookRunParams += TEXT(" -build");
 		}
 
-		if (PackagingSettings->FullRebuild)
+		if (PackagingSettingsAfterSave->FullRebuild)
 		{
 			BuildCookRunParams += TEXT(" -clean");
 		}
 
-		if (PackagingSettings->bCompressed)
+		if (PackagingSettingsAfterSave->bCompressed)
 		{
 			BuildCookRunParams += TEXT(" -compressed");
 		}
 
-		if (PackagingSettings->bUseIoStore)
+		if (PackagingSettingsAfterSave->bUseIoStore)
 		{
 			BuildCookRunParams += TEXT(" -iostore");
 
 			// Pak file(s) must be used when using container file(s)
-			PackagingSettings->UsePakFile = true;
+			PackagingSettingsAfterSave->UsePakFile = true;
 		}
 
-		if (PackagingSettings->UsePakFile)
+		if (PackagingSettingsAfterSave->UsePakFile)
 		{
 			BuildCookRunParams += TEXT(" -pak");
 		}
 
-		if (PackagingSettings->IncludePrerequisites)
+		if (PackagingSettingsAfterSave->IncludePrerequisites)
 		{
 			BuildCookRunParams += TEXT(" -prereqs");
 		}
 
-		if (!PackagingSettings->ApplocalPrerequisitesDirectory.Path.IsEmpty())
+		if (!PackagingSettingsAfterSave->ApplocalPrerequisitesDirectory.Path.IsEmpty())
 		{
-			BuildCookRunParams += FString::Printf(TEXT(" -applocaldirectory=\"%s\""), *(PackagingSettings->ApplocalPrerequisitesDirectory.Path));
+			BuildCookRunParams += FString::Printf(TEXT(" -applocaldirectory=\"%s\""), *(PackagingSettingsAfterSave->ApplocalPrerequisitesDirectory.Path));
 		}
-		else if (PackagingSettings->IncludeAppLocalPrerequisites)
+		else if (PackagingSettingsAfterSave->IncludeAppLocalPrerequisites)
 		{
 			BuildCookRunParams += TEXT(" -applocaldirectory=\"$(EngineDir)/Binaries/ThirdParty/AppLocalDependencies\"");
 		}
 
 		BuildCookRunParams += FString::Printf(TEXT(" -archivedirectory=\"%s\""), *PlatformsSettings->StagingDirectory.Path);
 
-		if (PackagingSettings->ForDistribution)
+		if (PackagingSettingsAfterSave->ForDistribution)
 		{
 			BuildCookRunParams += TEXT(" -distribution");
 		}
 
-		if (PackagingSettings->bGenerateChunks)
+		if (PackagingSettingsAfterSave->bGenerateChunks)
 		{
 			BuildCookRunParams += TEXT(" -manifests");
 		}
 
 		// Whether to include the crash reporter.
-		if (PackagingSettings->IncludeCrashReporter && PlatformInfo->DataDrivenPlatformInfo->bCanUseCrashReporter)
+		if (PackagingSettingsAfterSave->IncludeCrashReporter && PlatformInfo->DataDrivenPlatformInfo->bCanUseCrashReporter)
 		{
 			BuildCookRunParams += TEXT(" -CrashReporter");
 		}
 
-		if (PackagingSettings->bBuildHttpChunkInstallData)
+		if (PackagingSettingsAfterSave->bBuildHttpChunkInstallData)
 		{
-			BuildCookRunParams += FString::Printf(TEXT(" -manifests -createchunkinstall -chunkinstalldirectory=\"%s\" -chunkinstallversion=%s"), *(PackagingSettings->HttpChunkInstallDataDirectory.Path), *(PackagingSettings->HttpChunkInstallDataVersion));
+			BuildCookRunParams += FString::Printf(TEXT(" -manifests -createchunkinstall -chunkinstalldirectory=\"%s\" -chunkinstallversion=%s"), *(PackagingSettingsAfterSave->HttpChunkInstallDataDirectory.Path), *(PackagingSettingsAfterSave->HttpChunkInstallDataVersion));
 		}
 
-		EProjectPackagingBuildConfigurations BuildConfig = PlatformsSettings->GetBuildConfigurationForPlatform(IniPlatformName);
+		// Get build configuration - in UE 5.7, use PackagingSettings instead of PlatformsSettings
+		EProjectPackagingBuildConfigurations BuildConfig = PackagingSettingsAfterSave->BuildConfiguration;
 		UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
 		if(EdgegapSettings)
 		{
@@ -1205,7 +1218,7 @@ void FEdgegapSettingsDetails::PackageProject(const FName IniPlatformName)
 
 		BuildCookRunParams += FString::Printf(TEXT(" -server -noclient -serverconfig=%s"), LexToString(ConfigurationInfo.Configuration));
 
-		if (ConfigurationInfo.Configuration == EBuildConfiguration::Shipping && !PackagingSettings->IncludeDebugFiles)
+		if (ConfigurationInfo.Configuration == EBuildConfiguration::Shipping && !PackagingSettingsAfterSave->IncludeDebugFiles)
 		{
 			BuildCookRunParams += TEXT(" -nodebuginfo");
 		}
