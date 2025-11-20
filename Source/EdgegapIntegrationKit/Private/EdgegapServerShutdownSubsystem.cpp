@@ -38,11 +38,15 @@ void UEdgegapServerShutdownSubsystem::Initialize(FSubsystemCollectionBase& Colle
 		CachedRequestID = FPlatformMisc::GetEnvironmentVariable(TEXT("ARBITRIUM_REQUEST_ID"));
 	}
 	
-	bIsEdgegapEnvironment = !CachedRequestID.IsEmpty();
+	// Get production self-stop URL and token (preferred method for production)
+	CachedDeleteURL = FPlatformMisc::GetEnvironmentVariable(TEXT("ARBITRIUM_DELETE_URL"));
+	CachedDeleteToken = FPlatformMisc::GetEnvironmentVariable(TEXT("ARBITRIUM_DELETE_TOKEN"));
+	
+	bIsEdgegapEnvironment = !CachedDeleteURL.IsEmpty() && !CachedDeleteToken.IsEmpty();
 	
 	if (bIsEdgegapEnvironment)
 	{
-		UE_LOG(LogTemp, Log, TEXT("EdgegapServerShutdown: Detected Edgegap environment. Request ID: %s"), *CachedRequestID);
+		UE_LOG(LogTemp, Log, TEXT("EdgegapServerShutdown: Detected Edgegap environment with production self-stop endpoint"));
 		
 		// Setup shutdown hooks
 		SetupShutdownHooks();
@@ -52,7 +56,7 @@ void UEdgegapServerShutdownSubsystem::Initialize(FSubsystemCollectionBase& Colle
 	}
 	else
 	{
-		UE_LOG(LogTemp, Log, TEXT("EdgegapServerShutdown: Not running on Edgegap (no request ID found)"));
+		UE_LOG(LogTemp, Log, TEXT("EdgegapServerShutdown: Not running on Edgegap (no ARBITRIUM_DELETE_URL found)"));
 	}
 }
 
@@ -91,15 +95,25 @@ void UEdgegapServerShutdownSubsystem::CallSelfStopAPI(bool bWaitForResponse)
 		return;
 	}
 	
-	if (!bIsEdgegapEnvironment || CachedRequestID.IsEmpty())
+	if (!bIsEdgegapEnvironment)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EdgegapServerShutdown: Cannot call self-stop API - not running on Edgegap or no request ID"));
+		UE_LOG(LogTemp, Warning, TEXT("EdgegapServerShutdown: Cannot call self-stop API - not running on Edgegap"));
 		OnServerShutdown.Broadcast(false, TEXT("Not running on Edgegap environment"));
 		return;
 	}
 	
 	bShutdownInitiated = true;
-	StopDeploymentInternal(CachedRequestID);
+	
+	// Use production self-stop method (ARBITRIUM_DELETE_URL) - required for production
+	if (!CachedDeleteURL.IsEmpty() && !CachedDeleteToken.IsEmpty())
+	{
+		StopDeploymentInternal(CachedDeleteURL, CachedDeleteToken);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("EdgegapServerShutdown: Production self-stop method not available - missing ARBITRIUM_DELETE_URL or ARBITRIUM_DELETE_TOKEN"));
+		OnServerShutdown.Broadcast(false, TEXT("Production self-stop method not available - missing ARBITRIUM_DELETE_URL or ARBITRIUM_DELETE_TOKEN"));
+	}
 	
 	if (bWaitForResponse)
 	{
@@ -118,8 +132,9 @@ void UEdgegapServerShutdownSubsystem::CallSelfStopAPI(bool bWaitForResponse)
 	}
 }
 
-void UEdgegapServerShutdownSubsystem::StopDeploymentInternal(const FString& RequestID)
+void UEdgegapServerShutdownSubsystem::StopDeploymentInternal(const FString& DeleteURL, const FString& DeleteToken)
 {
+	// Production self-stop endpoint (preferred method)
 	FHttpModule* Http = &FHttpModule::Get();
 	if (!Http)
 	{
@@ -128,26 +143,16 @@ void UEdgegapServerShutdownSubsystem::StopDeploymentInternal(const FString& Requ
 		return;
 	}
 	
-	FString AuthorizationKey = UEGIKBlueprintFunctionLibrary::GetAuthorizationKey();
-	if (AuthorizationKey.IsEmpty())
-	{
-		UE_LOG(LogTemp, Error, TEXT("EdgegapServerShutdown: Authorization key not found"));
-		OnServerShutdown.Broadcast(false, TEXT("Authorization key not configured"));
-		return;
-	}
-	
-	FString URL = FString::Printf(TEXT("https://api.edgegap.com/v1/stop/%s"), *RequestID);
-	
 	ShutdownRequest = Http->CreateRequest();
-	ShutdownRequest->SetURL(URL);
+	ShutdownRequest->SetURL(DeleteURL);
 	ShutdownRequest->SetVerb("DELETE");
 	ShutdownRequest->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
-	ShutdownRequest->SetHeader(TEXT("Authorization"), *AuthorizationKey);
+	ShutdownRequest->SetHeader(TEXT("Authorization"), *DeleteToken);
 	ShutdownRequest->SetTimeout(5); // 5 second timeout
 	
 	ShutdownRequest->OnProcessRequestComplete().BindUObject(this, &UEdgegapServerShutdownSubsystem::OnShutdownResponseReceived);
 	
-	UE_LOG(LogTemp, Log, TEXT("EdgegapServerShutdown: Calling self-stop API for request ID: %s"), *RequestID);
+	UE_LOG(LogTemp, Log, TEXT("EdgegapServerShutdown: Calling production self-stop API"));
 	
 	if (!ShutdownRequest->ProcessRequest())
 	{

@@ -15,6 +15,6 @@ public:
 	FString APIToken;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#if defined(UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2) && UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
 #endif

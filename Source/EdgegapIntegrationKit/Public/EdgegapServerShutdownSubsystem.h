@@ -32,7 +32,7 @@ public:
 
 	/**
 	 * Check if the server is running in Edgegap environment
-	 * @return True if EDGEGAP_REQUEST_ID environment variable is set
+	 * @return True if ARBITRIUM_DELETE_URL and ARBITRIUM_DELETE_TOKEN environment variables are set
 	 */
 	UFUNCTION(BlueprintPure, Category = "Edgegap Integration Kit | Server")
 	bool IsRunningOnEdgegap() const;
@@ -53,7 +53,13 @@ private:
 	/** The deployment request ID from environment */
 	FString CachedRequestID;
 
-	/** Whether we're running on Edgegap (have request ID) */
+	/** Production self-stop URL from ARBITRIUM_DELETE_URL environment variable */
+	FString CachedDeleteURL;
+
+	/** Production self-stop token from ARBITRIUM_DELETE_TOKEN environment variable */
+	FString CachedDeleteToken;
+
+	/** Whether we're running on Edgegap (have request ID or delete URL) */
 	bool bIsEdgegapEnvironment;
 
 	/** Flag to prevent multiple shutdown calls */
@@ -65,8 +71,8 @@ private:
 	/** Callback for shutdown API response */
 	void OnShutdownResponseReceived(TSharedPtr<IHttpRequest> HttpRequest, TSharedPtr<IHttpResponse> HttpResponse, bool bArg);
 
-	/** Internal method to stop deployment */
-	void StopDeploymentInternal(const FString& RequestID);
+	/** Internal method to stop deployment using production self-stop endpoint */
+	void StopDeploymentInternal(const FString& DeleteURL, const FString& DeleteToken);
 
 	/** Setup crash handlers */
 	void SetupCrashHandlers();
