@@ -1,5 +1,4 @@
-﻿// Copyright (c) 2024 Betide Studio. All Rights Reserved.
-
+// Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_CreateRelaySession.h"
 
@@ -10,16 +9,20 @@ UEGIK_CreateRelaySession* UEGIK_CreateRelaySession::CreateRelaySession(FEGIK_Cre
 	return Node;
 }
 
-void UEGIK_CreateRelaySession::Activate()
+FString UEGIK_CreateRelaySession::GetEndpointURL() const
 {
-	Super::Activate();
-	FHttpModule* Http = &FHttpModule::Get();
-	TSharedRef<IHttpRequest> Request = Http->CreateRequest();
-	Request->SetVerb("GET");
-	Request->SetURL("https://api.edgegap.com/v1/relays/sessions");
-	Request->SetHeader("Content-Type", "application/json");
-	Request->SetHeader("Authorization", UEGIKBlueprintFunctionLibrary::GetAuthorizationKey());
+	return TEXT("https://api.edgegap.com/v1/relays/sessions");
+}
+
+EEGIK_HttpVerb UEGIK_CreateRelaySession::GetHTTPVerb() const
+{
+	return EEGIK_HttpVerb::POST;
+}
+
+TSharedPtr<FJsonObject> UEGIK_CreateRelaySession::BuildRequestBody() const
+{
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
+
 	TArray<TSharedPtr<FJsonValue>> UsersArray;
 	for (int i = 0; i < Var_Input.Users.Num(); i++)
 	{
@@ -28,6 +31,7 @@ void UEGIK_CreateRelaySession::Activate()
 		UsersArray.Add(MakeShareable(new FJsonValueObject(UserObject)));
 	}
 	JsonObject->SetArrayField("users", UsersArray);
+
 	TArray<TSharedPtr<FJsonValue>> FiltersArray;
 	for (int i = 0; i < Var_Input.Filters.Num(); i++)
 	{
@@ -53,52 +57,29 @@ void UEGIK_CreateRelaySession::Activate()
 			break;
 		default: ;
 		}
-		
+
 		TSharedPtr<FJsonValueObject> FilterValue = MakeShareable(new FJsonValueObject(FilterObject));
 		FiltersArray.Add(FilterValue);
 	}
 	JsonObject->SetArrayField("filters", FiltersArray);
 	JsonObject->SetStringField("webhook_url", Var_Input.WebhookUrl);
-	FString Content;
-	TSharedRef<TJsonWriter<TCHAR>> Writer = TJsonWriterFactory<>::Create(&Content);
-	FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
-	Request->SetContentAsString(Content);
-	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_CreateRelaySession::OnResponseReceived);
-	if (!Request->ProcessRequest())
-	{
-		OnFailure.Broadcast(FEGIK_RelaySessionInfo(), FEGIK_ErrorStruct(0, "Failed to process request"));
-		SetReadyToDestroy();
-		MarkAsGarbage();
-	}
+
+	return JsonObject;
 }
 
-void UEGIK_CreateRelaySession::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest,
-	TSharedPtr<IHttpResponse> HttpResponse, bool bArg)
+void UEGIK_CreateRelaySession::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)
 {
-	if (HttpResponse.IsValid())
+	if (JsonObject.IsValid())
 	{
-		if (EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
-		{
-			TSharedPtr<FJsonObject> JsonObject;
-			TSharedRef<TJsonReader<TCHAR>> Reader = TJsonReaderFactory<TCHAR>::Create(HttpResponse->GetContentAsString());
-			if (FJsonSerializer::Deserialize(Reader, JsonObject))
-			{
-				OnSuccess.Broadcast(JsonObject, FEGIK_ErrorStruct());
-			}
-			else
-			{
-				OnFailure.Broadcast(FEGIK_RelaySessionInfo(), FEGIK_ErrorStruct(0, "Failed to deserialize response"));
-			}
-		}
-		else
-		{
-			OnFailure.Broadcast(FEGIK_RelaySessionInfo(), FEGIK_ErrorStruct(HttpResponse->GetResponseCode(), HttpResponse->GetContentAsString()));
-		}
+		OnSuccess.Broadcast(JsonObject, FEGIK_ErrorStruct());
 	}
 	else
 	{
 		OnFailure.Broadcast(FEGIK_RelaySessionInfo(), FEGIK_ErrorStruct(0, "Failed to deserialize response"));
 	}
-	SetReadyToDestroy();
-	MarkAsGarbage();
+}
+
+void UEGIK_CreateRelaySession::HandleError(int32 ErrorCode, const FString& ErrorMessage)
+{
+	OnFailure.Broadcast(FEGIK_RelaySessionInfo(), FEGIK_ErrorStruct(ErrorCode, ErrorMessage));
 }

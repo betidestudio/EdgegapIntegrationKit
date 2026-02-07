@@ -1,14 +1,10 @@
-﻿// Copyright (c) 2024 Betide Studio. All Rights Reserved.
+// Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HttpModule.h"
-#include "Interfaces/IHttpResponse.h"
-#include "EGIKBlueprintFunctionLibrary.h"
-#include "Kismet/BlueprintAsyncActionBase.h"
+#include "EGIK_AsyncRequestBase.h"
 #include "EGIK_CreateDeployment.generated.h"
-
 
 USTRUCT(BlueprintType)
 struct FEGIK_CreateDeploymentStruct
@@ -23,10 +19,6 @@ struct FEGIK_CreateDeploymentStruct
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
 	FString VersionName;
 
-	//If the Application is public or private. If not specified, we will look for a private Application
-	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	bool IsPublicApp = false;
-
 	//The List of IP of your user - Will be used to find the best location to deploy your App
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
 	TArray<FString> UserIPs;
@@ -34,10 +26,6 @@ struct FEGIK_CreateDeploymentStruct
 	//The list of IP of your user with their location (latitude, longitude)
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
 	TArray<FEGIK_GeoIpStruct> UserGeoIPs;
-
-	//Array of strings
-	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	TArray<FString> telemetry_profile_uuid_list;
 
 	//A list of deployment variables
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
@@ -66,10 +54,6 @@ struct FEGIK_CreateDeploymentStruct
 	//Filters to use while choosing the deployment location.
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
 	TArray<FEGIK_FiltersStruct> Filters;
-
-	//Algorithm used to select the edge location
-	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	TEnumAsByte<EEGIK_ApSortStrategy> SortStrategy = EEGIK_ApSortStrategy::EGIK_Basic;
 
 	//Allows to override the Container command for this deployment.
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
@@ -100,14 +84,12 @@ struct FEGIK_CreateDeploymentResponse
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
 	int32 RequestUserCount = -1;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
-	FString ApSortStrategy = "basic";
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FCreateDeploymentResponse, const FEGIK_CreateDeploymentResponse&, Response, const FEGIK_ErrorStruct&, Error);
 
 UCLASS()
-class EDGEGAPINTEGRATIONKIT_API UEGIK_CreateDeployment : public UBlueprintAsyncActionBase
+class EDGEGAPINTEGRATIONKIT_API UEGIK_CreateDeployment : public UEGIK_AsyncRequestBase
 {
 	GENERATED_BODY()
 
@@ -115,14 +97,19 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"), Category = "Edgegap Integration Kit | Deployment")
 	static UEGIK_CreateDeployment* CreateDeployment(FEGIK_CreateDeploymentStruct DeploymentStruct);
 
-	void OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest, TSharedPtr<IHttpResponse> HttpResponse, bool bArg);
-	virtual void Activate() override;
-
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Deployment")
 	FCreateDeploymentResponse OnSuccess;
 
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Deployment")
 	FCreateDeploymentResponse OnFailure;
+
+protected:
+	virtual FString GetEndpointURL() const override;
+	virtual EEGIK_HttpVerb GetHTTPVerb() const override;
+	virtual TSharedPtr<FJsonObject> BuildRequestBody() const override;
+	virtual void ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject) override;
+	virtual void HandleError(int32 ErrorCode, const FString& ErrorMessage) override;
+	virtual FString GetLogCategory() const override { return TEXT("Deployment"); }
 
 private:
 	FEGIK_CreateDeploymentStruct Var_DeploymentStruct;

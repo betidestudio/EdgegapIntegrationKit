@@ -23,13 +23,76 @@ FString UEGIKBlueprintFunctionLibrary::Conv_EGIK_MatchmakingResponseToString(FEG
 
 FString UEGIKBlueprintFunctionLibrary::GetAuthorizationKey()
 {
-	FString AuthorizationKey;
+	// 1. Environment variable (recommended for servers)
+	FString AuthorizationKey = FPlatformMisc::GetEnvironmentVariable(TEXT("EDGEGAP_API_KEY"));
+	if (!AuthorizationKey.IsEmpty())
+	{
+		return AuthorizationKey;
+	}
+
+	// 2. DefaultEditor.ini (editor-only, never ships with builds)
+	FString ProjectEditorIniPath = FPaths::ProjectConfigDir() / TEXT("DefaultEditor.ini");
+	if (GConfig)
+	{
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("AuthorizationKey"), AuthorizationKey, ProjectEditorIniPath);
+	}
+
+	return AuthorizationKey;
+}
+
+FString UEGIKBlueprintFunctionLibrary::GetServerBrowserURL()
+{
+	// 1. Environment variable
+	FString Value = FPlatformMisc::GetEnvironmentVariable(TEXT("EDGEGAP_SB_URL"));
+	if (!Value.IsEmpty())
+	{
+		return Value;
+	}
+
+	// 2. DefaultEngine.ini (client-safe, ships with builds)
 	FString ProjectEngineIniPath = FPaths::ProjectConfigDir() / TEXT("DefaultEngine.ini");
 	if (GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("AuthorizationKey"), AuthorizationKey, ProjectEngineIniPath);
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserURL"), Value, ProjectEngineIniPath);
 	}
-	return AuthorizationKey;
+	return Value;
+}
+
+FString UEGIKBlueprintFunctionLibrary::GetServerBrowserServerToken()
+{
+	// 1. Environment variable (recommended for servers)
+	FString Value = FPlatformMisc::GetEnvironmentVariable(TEXT("EDGEGAP_SB_SERVER_TOKEN"));
+	if (!Value.IsEmpty())
+	{
+		return Value;
+	}
+
+	// 2. DefaultEditor.ini (editor-only, never ships with builds)
+	FString ProjectEditorIniPath = FPaths::ProjectConfigDir() / TEXT("DefaultEditor.ini");
+	if (GConfig)
+	{
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserServerToken"), Value, ProjectEditorIniPath);
+	}
+
+	return Value;
+}
+
+FString UEGIKBlueprintFunctionLibrary::GetServerBrowserClientToken()
+{
+	// 1. Environment variable
+	FString Value = FPlatformMisc::GetEnvironmentVariable(TEXT("EDGEGAP_SB_CLIENT_TOKEN"));
+	if (!Value.IsEmpty())
+	{
+		return Value;
+	}
+
+	// 2. DefaultEngine.ini (client-safe, ships with builds)
+	FString ProjectEngineIniPath = FPaths::ProjectConfigDir() / TEXT("DefaultEngine.ini");
+	if (GConfig)
+	{
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserClientToken"), Value, ProjectEngineIniPath);
+	}
+	return Value;
 }
 
 void UEGIKBlueprintFunctionLibrary::GetEnvironmentVariable(FString Key, FString& Value)

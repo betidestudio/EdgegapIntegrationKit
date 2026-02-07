@@ -1,67 +1,42 @@
-﻿// Copyright (c) 2024 Betide Studio. All Rights Reserved.
-
+// Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_DeleteDeployment.h"
 
-UEGIK_DeleteDeployment* UEGIK_DeleteDeployment::DeleteDeployment(FString bRequestId, FString ContainerLogStorage)
+UEGIK_DeleteDeployment* UEGIK_DeleteDeployment::DeleteDeployment(FString RequestId, FString ContainerLogStorage)
 {
-	UEGIK_DeleteDeployment* UEGIK_DeleteDeploymentObject = NewObject<UEGIK_DeleteDeployment>();
-	UEGIK_DeleteDeploymentObject->Var_bRequestId = bRequestId;
-	UEGIK_DeleteDeploymentObject->Var_ContainerLogStorage = ContainerLogStorage;
-	return UEGIK_DeleteDeploymentObject;
+	UEGIK_DeleteDeployment* Node = NewObject<UEGIK_DeleteDeployment>();
+	Node->Var_RequestId = RequestId;
+	Node->Var_ContainerLogStorage = ContainerLogStorage;
+	return Node;
 }
 
-void UEGIK_DeleteDeployment::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest,
-                                                TSharedPtr<IHttpResponse> HttpResponse, bool bArg)
+FString UEGIK_DeleteDeployment::GetEndpointURL() const
 {
-	if (HttpResponse.IsValid())
-	{
-		if (EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
-		{
-			TSharedPtr<FJsonObject> JsonObject;
-			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(HttpResponse->GetContentAsString());
-			if(FJsonSerializer::Deserialize(Reader, JsonObject))
-			{
-				FEGIK_DeleteDeploymentResponse Response;
-				Response.Message = JsonObject->GetStringField(TEXT("message"));
-				if(JsonObject->HasField(TEXT("deployment_summary")))
-				{
-					Response.DeploymentStatusAndInfo = JsonObject->GetObjectField(TEXT("deployment_summary"));
-				}
-				OnSuccess.Broadcast(Response, FEGIK_ErrorStruct());
-			}
-			else
-			{
-				OnFailure.Broadcast(FEGIK_DeleteDeploymentResponse(), FEGIK_ErrorStruct(0, "Failed to deserialize response"));
-			}
-		}
-		else
-		{
-			OnFailure.Broadcast(FEGIK_DeleteDeploymentResponse(), FEGIK_ErrorStruct(HttpResponse->GetResponseCode(), HttpResponse->GetContentAsString()));
-		}
-	}
-	else
-	{
-		OnFailure.Broadcast(FEGIK_DeleteDeploymentResponse(), FEGIK_ErrorStruct(0, "Failed to deserialize response"));
-	}
-	SetReadyToDestroy();
-	MarkAsGarbage();
+	return FString::Printf(TEXT("https://api.edgegap.com/v1/stop/%s"), *Var_RequestId);
 }
 
-void UEGIK_DeleteDeployment::Activate()
+EEGIK_HttpVerb UEGIK_DeleteDeployment::GetHTTPVerb() const
 {
-	Super::Activate();
-	FHttpModule* Http = &FHttpModule::Get();
-	TSharedRef<IHttpRequest> Request = Http->CreateRequest();
-	Request->SetVerb("DELETE");
-	Request->SetURL("https://api.edgegap.com/v1/stop/" + Var_bRequestId);
-	Request->SetHeader("Content-Type", "application/json");
-	Request->SetHeader("Authorization", UEGIKBlueprintFunctionLibrary::GetAuthorizationKey());
-	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_DeleteDeployment::OnResponseReceived);
-	if (!Request->ProcessRequest())
+	return EEGIK_HttpVerb::DELETE;
+}
+
+void UEGIK_DeleteDeployment::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)
+{
+	FEGIK_DeleteDeploymentResponse Response;
+
+	if (JsonObject.IsValid())
 	{
-		OnFailure.Broadcast(FEGIK_DeleteDeploymentResponse(), FEGIK_ErrorStruct(0, "Failed to process request"));
-		SetReadyToDestroy();
-		MarkAsGarbage();
+		Response.Message = JsonObject->GetStringField(TEXT("message"));
+		if (JsonObject->HasField(TEXT("deployment_summary")))
+		{
+			Response.DeploymentStatusAndInfo = FEGIK_DeploymentStatusAndInfoResponse(JsonObject->GetObjectField(TEXT("deployment_summary")));
+		}
 	}
+
+	OnSuccess.Broadcast(Response, FEGIK_ErrorStruct());
+}
+
+void UEGIK_DeleteDeployment::HandleError(int32 ErrorCode, const FString& ErrorMessage)
+{
+	OnFailure.Broadcast(FEGIK_DeleteDeploymentResponse(), FEGIK_ErrorStruct(ErrorCode, ErrorMessage));
 }

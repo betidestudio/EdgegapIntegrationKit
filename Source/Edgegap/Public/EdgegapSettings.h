@@ -9,6 +9,13 @@
 #include "Settings/ProjectPackagingSettings.h"
 #include "EdgegapSettings.generated.h"
 
+UENUM()
+enum class EEdgegapBuildMode : uint8
+{
+	LocalBuild UMETA(DisplayName = "Local Build (requires Linux cross-compilation)"),
+	DockerBuild UMETA(DisplayName = "Docker Build (no source required)")
+};
+
 USTRUCT(BlueprintType)
 struct FEdgegapPortConfig
 {
@@ -70,6 +77,8 @@ public:
 #endif
 	//~ End UObject Interface
 
+	// Main Edgegap API key. SERVER-ONLY: do not ship in client builds.
+	// For dedicated servers, prefer setting the EDGEGAP_API_KEY environment variable.
 	UPROPERTY(EditAnywhere, Category = "API Key", DisplayName = "Authorization Key")
 	FString AuthorizationKey;
 
@@ -77,13 +86,40 @@ public:
 	FAPITokenSettings APIToken;
 
 	UPROPERTY(Config, EditAnywhere, Category = "Docker Settings", DisplayName = "Docker Path")
-	FString DockerPath = "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe";
+	FString DockerPath;
 
 	UPROPERTY(Config, EditAnywhere, Category = "Build Configurations", DisplayName = "Build Configurations")
 	EProjectPackagingBuildConfigurations BuildConfiguration = EProjectPackagingBuildConfigurations::PPBC_Development;
 	
-	UPROPERTY(Config, EditAnywhere, Category = "Build Configurations", DisplayName = "Build Configurations")
+	UPROPERTY(Config, EditAnywhere, Category = "Build Configurations", DisplayName = "Target Name Override")
 	FString OverridableTargetName = FString::Printf(TEXT("%sServer"), FApp::GetProjectName());
+
+	UPROPERTY(Config, EditAnywhere, Category = "Build Configurations", DisplayName = "Build Mode")
+	EEdgegapBuildMode BuildMode = EEdgegapBuildMode::LocalBuild;
+
+	// GitHub username for ghcr.io login (must have access to Epic's UE Docker images)
+	UPROPERTY(Config, EditAnywhere, Category = "Build Configurations|Docker Build",
+		Meta = (EditCondition = "BuildMode == EEdgegapBuildMode::DockerBuild", EditConditionHides),
+		DisplayName = "GitHub Username")
+	FString GitHubUsername;
+
+	// GitHub Personal Access Token with read:packages scope
+	UPROPERTY(Config, EditAnywhere, Category = "Build Configurations|Docker Build",
+		Meta = (EditCondition = "BuildMode == EEdgegapBuildMode::DockerBuild", EditConditionHides),
+		DisplayName = "GitHub PAT (read:packages)")
+	FString GitHubPAT;
+
+	// UE Docker image tag (e.g., "dev-5.5.4", "dev-5.4.4")
+	UPROPERTY(Config, EditAnywhere, Category = "Build Configurations|Docker Build",
+		Meta = (EditCondition = "BuildMode == EEdgegapBuildMode::DockerBuild", EditConditionHides),
+		DisplayName = "UE Docker Image Tag")
+	FString UEDockerImageTag = TEXT("dev-5.5.4");
+
+	// Additional build arguments passed to RunUAT.sh inside the Docker container
+	UPROPERTY(Config, EditAnywhere, Category = "Build Configurations|Docker Build",
+		Meta = (EditCondition = "BuildMode == EEdgegapBuildMode::DockerBuild", EditConditionHides),
+		DisplayName = "Extra Build Args")
+	FString DockerExtraBuildArgs;
 
 	UPROPERTY(Config, EditAnywhere, Category = "Application Info", Meta = (EditCondition = "bIsTokenVerified"), DisplayName = "Application Name")
 	FText ApplicationName;
@@ -142,6 +178,18 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Container Registry", Meta = (EditCondition = "bUseCustomContainerRegistry"), DisplayName = "Token")
 	FString PrivateRegistryToken;
 
+	// Server Browser URL (unique per app)
+	UPROPERTY(Config, EditAnywhere, Category = "Server Browser", DisplayName = "Server Browser URL")
+	FString ServerBrowserURL;
+
+	// Server Token for server-side operations (register, heartbeat, slots, confirm)
+	UPROPERTY(Config, EditAnywhere, Category = "Server Browser", DisplayName = "Server Token")
+	FString ServerBrowserServerToken;
+
+	// Client Token for client-side operations (browse, reserve seats)
+	UPROPERTY(Config, EditAnywhere, Category = "Server Browser", DisplayName = "Client Token")
+	FString ServerBrowserClientToken;
+
 	UPROPERTY(Config)
 	FString Tag;
 
@@ -153,6 +201,3 @@ public:
 	bool bIsTokenVerified = true;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "CoreMinimal.h"
-#endif

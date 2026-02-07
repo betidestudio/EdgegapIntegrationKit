@@ -7,7 +7,7 @@ using System.IO;
 
 public class Edgegap : ModuleRules
 {
-	
+
 	private string ModulePath
 	{
 
@@ -18,10 +18,29 @@ public class Edgegap : ModuleRules
 	}
 
 
-	
+
 	public Edgegap(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+
+        // Check if we're building as part of UCIK
+        bool bIsUCIK = Directory.Exists(Path.Combine(ModuleDirectory, "..", "UCIKCore"));
+
+        if (bIsUCIK)
+        {
+            PublicDefinitions.Add("WITH_UCIK=1");
+            PrivateDependencyModuleNames.Add("UCIKCore");
+        }
+        else
+        {
+            PublicDefinitions.Add("WITH_UCIK=0");
+        }
+
+        PublicIncludePaths.AddRange(
+            new string[] {
+                Path.Combine(ModuleDirectory, "Public")
+            }
+        );
 
         PrivateDependencyModuleNames.AddRange(
             new string[] {
@@ -80,7 +99,7 @@ public class Edgegap : ModuleRules
                 "SettingsEditor",
                 "Zen",
                 "DeveloperSettings",
-                "DesktopWidgets"
+                "DesktopWidgets",
             }
         );
 

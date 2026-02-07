@@ -1,12 +1,9 @@
-﻿// Copyright (c) 2024 Betide Studio. All Rights Reserved.
+// Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HttpModule.h"
-#include "Interfaces/IHttpResponse.h"
-#include "EGIKBlueprintFunctionLibrary.h"
-#include "Kismet/BlueprintAsyncActionBase.h"
+#include "EGIK_AsyncRequestBase.h"
 #include "EGIK_GetLocationBeacons.generated.h"
 
 USTRUCT(BlueprintType)
@@ -45,7 +42,7 @@ struct FEGIK_LocationBeaconResponse
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGetLocationBeaconsResponse, const FEGIK_LocationBeaconResponse&, Response, const FEGIK_ErrorStruct&, Error);
 
 UCLASS()
-class EDGEGAPINTEGRATIONKIT_API UEGIK_GetLocationBeacons : public UBlueprintAsyncActionBase
+class EDGEGAPINTEGRATIONKIT_API UEGIK_GetLocationBeacons : public UEGIK_AsyncRequestBase
 {
 	GENERATED_BODY()
 
@@ -54,14 +51,19 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"), Category = "Edgegap Integration Kit | Location")
 	static UEGIK_GetLocationBeacons* GetLocationBeacons(FString MatchmakingUrl, FString AuthToken);
 
-	void OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest, TSharedPtr<IHttpResponse> HttpResponse, bool bArg);
-	virtual void Activate() override;
-
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Location")
 	FGetLocationBeaconsResponse OnSuccess;
 
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Location")
 	FGetLocationBeaconsResponse OnFailure;
+
+protected:
+	virtual FString GetEndpointURL() const override;
+	virtual EEGIK_HttpVerb GetHTTPVerb() const override;
+	virtual FString GetAuthorizationHeader() const override;
+	virtual void ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject) override;
+	virtual void HandleError(int32 ErrorCode, const FString& ErrorMessage) override;
+	virtual FString GetLogCategory() const override { return TEXT("Locations"); }
 
 private:
 	FString Var_MatchmakingUrl;

@@ -216,7 +216,13 @@ namespace{
 		UProjectPackagingSettings* PackagingSettings = Cast<UProjectPackagingSettings>(UProjectPackagingSettings::StaticClass()->GetDefaultObject());
 		UPlatformsMenuSettings* PlatformsSettings = GetMutableDefault<UPlatformsMenuSettings>();
 
-		FString PluginDir = IPluginManager::Get().FindPlugin(FString("EdgegapIntegrationKit"))->GetBaseDir();
+		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(FString("UltimateCrossplayIntegrationKit"));
+		if (!Plugin.IsValid())
+		{
+			UE_LOG(EdgegapLog, Error, TEXT("UltimateCrossplayIntegrationKit plugin not found"));
+			return;
+		}
+		FString PluginDir = Plugin->GetBaseDir();
 		FString DockerFilePath = FPaths::Combine(PluginDir, FString("Dockerfile"));
 		FString StartScriptPath = FPaths::Combine(PluginDir, FString("StartServer.sh"));
 		FString ServerBuildPath = PlatformsSettings->StagingDirectory.Path; // PackagingSettings->StagingDirectory.Path;
@@ -225,15 +231,13 @@ namespace{
 
 		AsyncTask(ENamedThreads::GameThread, [DockerFilePath, StartScriptPath, ServerBuildPath] {
 
-			const UEdgegapSettings* EdgegapSettings = GetDefault<UEdgegapSettings>();
-
+			const UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
 			const FString _Registry = EdgegapSettings->Registry;
 			const FString _ImageRepository = EdgegapSettings->ImageRepository;
-
-			const FString _Tag = FEdgegapSettingsDetails::_RecentTag;
-
 			const FString _PrivateRegistryUsername = EdgegapSettings->PrivateRegistryUsername;
 			const FString _PrivateRegistryToken = EdgegapSettings->PrivateRegistryToken;
+
+			const FString _Tag = FEdgegapSettingsDetails::_RecentTag;
 
 			FEdgegapSettingsDetails::Containerize(DockerFilePath, StartScriptPath, ServerBuildPath, _Registry, _ImageRepository, _Tag, _PrivateRegistryUsername, _PrivateRegistryToken);
 		});
@@ -247,18 +251,15 @@ namespace{
 			UE_LOG(EdgegapLog, Warning, TEXT("OnDockerLoginCallback: Could not login, message:%s"), *res);
 			return;
 		}
-		const UEdgegapSettings* EdgegapSettings = GetDefault<UEdgegapSettings>();
-
-
+		const UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
 		const FString _Registry = EdgegapSettings->Registry;
 		const FString _ImageRepository = EdgegapSettings->ImageRepository;
+		const FString _PrivateRegistryUsername = EdgegapSettings->PrivateRegistryUsername;
+		const FString _PrivateRegistryToken = EdgegapSettings->PrivateRegistryToken;
+		const FString _AppName = EdgegapSettings->ApplicationName.ToString();
 
 		const FString _Tag = FEdgegapSettingsDetails::_RecentTag;
 
-		const FString _PrivateRegistryUsername = EdgegapSettings->PrivateRegistryUsername;
-		const FString _PrivateRegistryToken = EdgegapSettings->PrivateRegistryToken;
-
-		const FString _AppName = EdgegapSettings->ApplicationName.ToString();
 		FString ImageName = FEdgegapSettingsDetails::MakeImageName(_Registry, _ImageRepository, _AppName, _Tag);
 
 		AsyncTask(ENamedThreads::GameThread, [_Registry, _PrivateRegistryUsername, _PrivateRegistryToken, ImageName] {FEdgegapSettingsDetails::PushContainer(ImageName, _Registry, _PrivateRegistryUsername, _PrivateRegistryToken, true); });
@@ -272,17 +273,15 @@ namespace{
 			return;
 		}
 
-		const UEdgegapSettings* EdgegapSettings = GetDefault<UEdgegapSettings>();
-
+		const UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
 		const FString _Registry = EdgegapSettings->Registry;
 		const FString _ImageRepository = EdgegapSettings->ImageRepository;
+		const FString _PrivateRegistryUsername = EdgegapSettings->PrivateRegistryUsername;
+		const FString _PrivateRegistryToken = EdgegapSettings->PrivateRegistryToken;
+		const FString _AppName = EdgegapSettings->ApplicationName.ToString();
 
 		const FString _Tag = FEdgegapSettingsDetails::_RecentTag;
 
-		const FString _PrivateRegistryUsername = EdgegapSettings->PrivateRegistryUsername;
-		const FString _PrivateRegistryToken = EdgegapSettings->PrivateRegistryToken;
-
-		const FString _AppName = EdgegapSettings->ApplicationName.ToString();
 		FString ImageName = FEdgegapSettingsDetails::MakeImageName(_Registry, _ImageRepository, _AppName, _Tag);
 
 		AsyncTask(ENamedThreads::GameThread, [_Registry, _PrivateRegistryUsername, _PrivateRegistryToken, ImageName] {FEdgegapSettingsDetails::PushContainer(ImageName, _Registry, _PrivateRegistryUsername, _PrivateRegistryToken); });
@@ -298,26 +297,83 @@ namespace{
 
 		const FString _TargetTag = FEdgegapSettingsDetails::_RecentTag;
 
-		const UEdgegapSettings* EdgegapSettings = GetDefault<UEdgegapSettings>();
-
-		const FText _AppName = EdgegapSettings->ApplicationName;
-		// Making the container tag name and version name match
-		const FString _VersionName = _TargetTag;
-		const FString _APIToken = EdgegapSettings->APIToken.APIToken;
-
+		const UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
+		const FString _AppName = EdgegapSettings->ApplicationName.ToString();
+		const FString _APIToken = EdgegapSettings->AuthorizationKey;
 		const FString _Registry = EdgegapSettings->Registry;
 		const FString _ImageRepository = EdgegapSettings->ImageRepository;
-
-		const FString _Tag = _TargetTag;
-
 		const FString _PrivateRegistryUsername = EdgegapSettings->PrivateRegistryUsername;
 		const FString _PrivateRegistryToken = EdgegapSettings->PrivateRegistryToken;
+
+		// Making the container tag name and version name match
+		const FString _VersionName = _TargetTag;
+		const FString _Tag = _TargetTag;
 
 		FNotificationInfo* Info = new FNotificationInfo(LOCTEXT("OperationSuccess", "Build and Push completed successfully"));
 		Info->ExpireDuration = 3.0f;
 		FSlateNotificationManager::Get().QueueNotification(Info);
 
-		FEdgegapSettingsDetails::CreateVersion(_AppName.ToString(), _VersionName, _APIToken, _Registry, _ImageRepository, _Tag, _PrivateRegistryUsername, _PrivateRegistryToken);
+		FEdgegapSettingsDetails::CreateVersion(_AppName, _VersionName, _APIToken, _Registry, _ImageRepository, _Tag, _PrivateRegistryUsername, _PrivateRegistryToken);
+	}
+
+	// --- Docker Build callbacks ---
+
+	void OnDockerBuild_GHCRLoginCallback(FString res, double num)
+	{
+		if (res != "Completed")
+		{
+			UE_LOG(EdgegapLog, Warning, TEXT("OnDockerBuild_GHCRLoginCallback: Could not login to ghcr.io, message:%s"), *res);
+
+			FNotificationInfo* Info = new FNotificationInfo(LOCTEXT("GHCRLoginFailed", "Failed to login to ghcr.io. Ensure your GitHub PAT has read:packages scope and your account is linked to Epic Games."));
+			Info->ExpireDuration = 5.0f;
+			FSlateNotificationManager::Get().QueueNotification(Info);
+			return;
+		}
+
+		UE_LOG(EdgegapLog, Log, TEXT("Successfully logged into ghcr.io"));
+
+		const UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
+		const FString _Registry = EdgegapSettings->Registry;
+		const FString _ImageRepository = EdgegapSettings->ImageRepository;
+		const FString _AppName = EdgegapSettings->ApplicationName.ToString();
+		const FString _Tag = FEdgegapSettingsDetails::_RecentTag;
+
+		FString ImageName = FEdgegapSettingsDetails::MakeImageName(_Registry, _ImageRepository, _AppName, _Tag);
+		FString ProjectDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
+
+		AsyncTask(ENamedThreads::GameThread, [ImageName, ProjectDir] {
+			FEdgegapSettingsDetails::DockerBuild_Build(ImageName, ProjectDir);
+		});
+	}
+
+	void OnDockerBuild_BuildCallback(FString res, double num)
+	{
+		if (res != "Completed")
+		{
+			UE_LOG(EdgegapLog, Warning, TEXT("OnDockerBuild_BuildCallback: Docker build failed, message:%s"), *res);
+
+			FNotificationInfo* Info = new FNotificationInfo(LOCTEXT("DockerBuildFailed", "Docker Build failed. Check Output Log for details."));
+			Info->ExpireDuration = 5.0f;
+			FSlateNotificationManager::Get().QueueNotification(Info);
+			return;
+		}
+
+		UE_LOG(EdgegapLog, Log, TEXT("Docker Build completed successfully"));
+
+		// Proceed to push (reuses existing push flow)
+		const UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
+		const FString _Registry = EdgegapSettings->Registry;
+		const FString _ImageRepository = EdgegapSettings->ImageRepository;
+		const FString _PrivateRegistryUsername = EdgegapSettings->PrivateRegistryUsername;
+		const FString _PrivateRegistryToken = EdgegapSettings->PrivateRegistryToken;
+		const FString _AppName = EdgegapSettings->ApplicationName.ToString();
+		const FString _Tag = FEdgegapSettingsDetails::_RecentTag;
+
+		FString ImageName = FEdgegapSettingsDetails::MakeImageName(_Registry, _ImageRepository, _AppName, _Tag);
+
+		AsyncTask(ENamedThreads::GameThread, [_Registry, _PrivateRegistryUsername, _PrivateRegistryToken, ImageName] {
+			FEdgegapSettingsDetails::PushContainer(ImageName, _Registry, _PrivateRegistryUsername, _PrivateRegistryToken);
+		});
 	}
 
 	FString GetProjectPathForTurnkey()
@@ -509,6 +565,11 @@ TSharedRef<IDetailCustomization> FEdgegapSettingsDetails::MakeInstance()
 
 FSlateBrush* FEdgegapSettingsDetails::LoadImage(const FString& InImagePath)
 {
+	if (!FSlateApplication::IsInitialized())
+	{
+		return nullptr;
+	}
+
 	if (SavedImageBrush.IsValid())
 	{
 		FSlateApplication::Get().GetRenderer()->ReleaseDynamicResource(*SavedImageBrush.Get());
@@ -552,7 +613,6 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 {
 	const FSlateColor BlueSlateColor = FSlateColor(FLinearColor(0.42f, 0.29f, 0.204f, 1.0f));
 
-	IDetailCategoryBuilder& HiddenCategory = DetailBuilder.EditCategory(" ");
 	IDetailCategoryBuilder& ApiInfoCategory = DetailBuilder.EditCategory("API Key");
 	IDetailCategoryBuilder& ApplicationInfoCategory = DetailBuilder.EditCategory("Application Info");
 
@@ -560,82 +620,91 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	DetailBuilder.HideProperty(IsTokenVerifiedProperty);
 
 	bool _bIsTokenVerified = false;
-	IsTokenVerifiedProperty->SetValue(false);
+	if (IsTokenVerifiedProperty.IsValid())
+	{
+		IsTokenVerifiedProperty->SetValue(false);
+	}
 
-	// Image Banner
+	TSharedPtr<IPropertyHandle> AuthorizationKeyProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, AuthorizationKey));
 
-	FString BannerImagePath = GetBannerImageFilePath();
+	if (ApiInfoCategory.IsParentLayoutValid() && AuthorizationKeyProperty.IsValid())
+	{
+		ApiInfoCategory.AddProperty(AuthorizationKeyProperty);
+	}
 
-	HiddenCategory.AddCustomRow(FText::GetEmpty())
-		.WholeRowContent()
-		.HAlign(EHorizontalAlignment::HAlign_Center)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
+	// Warning: Authorization Key is a server-only key
+	ApiInfoCategory.AddCustomRow(FText::FromString("KeyWarning"))
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
-		.HAlign(EHorizontalAlignment::HAlign_Center)
-		.Padding(25)
+		.Padding(4, 2)
 		[
-			SNew(SImage).Image(LoadImage(BannerImagePath))
+			SNew(SImage)
+			.Image(FAppStyle::GetBrush("Icons.InfoWithColor"))
+		]
+		+ SHorizontalBox::Slot()
+		.FillWidth(1.0f)
+		.VAlign(VAlign_Center)
+		.Padding(4, 2)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("AuthKeyWarning", "This key is stored in DefaultEditor.ini and will not be included in builds. For deployed servers, set the EDGEGAP_API_KEY environment variable."))
+			.AutoWrapText(true)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
 		]
 	];
-
-	// Hides the category
-	HiddenCategory.SetDisplayName(FText::GetEmpty());
-
-	FName APIToken_PropFname = GET_MEMBER_NAME_CHECKED(UEdgegapSettings, APIToken);
-
-	if (ApiInfoCategory.IsParentLayoutValid())
-	{
-		ApiInfoCategory.AddProperty(APIToken_PropFname);
-	}
 
 	// --- Application Info
 
 	TSharedPtr<IPropertyHandle> ApplicationNameProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, ApplicationName));
 	TSharedPtr<IPropertyHandle> VersionNameProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, VersionName));
 	TSharedPtr<IPropertyHandle> ImagePathProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, ImagePath));
-
-	TSharedPtr<IPropertyHandle> APITokenProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, APIToken));
-	TSharedPtr<IPropertyHandle> APITokenStrProperty = APITokenProperty->GetChildHandle("APIToken");
-
+	TSharedPtr<IPropertyHandle> APITokenProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, AuthorizationKey));
 	TSharedPtr<IPropertyHandle> TagProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, Tag));
+	TSharedPtr<IPropertyHandle> APITokenStrProperty = APITokenProperty; // AuthorizationKey is now a direct FString
 
 	// Customize the property's appearance and behavior
-	DetailBuilder.HideProperty(ApplicationNameProperty);
+	if (ApplicationNameProperty.IsValid())
+	{
+		DetailBuilder.HideProperty(ApplicationNameProperty);
 
-	AppNameWidgetRow = &ApplicationInfoCategory.AddCustomRow(FText::FromString("Application Name"))
-	.NameContent()
-	[
-		ApplicationNameProperty->CreatePropertyNameWidget()
-	]
-	.ValueContent()
-	[
-		ApplicationNameProperty->CreatePropertyValueWidget()
-	];
-
-	DetailBuilder.HideProperty(ImagePathProperty);
-
-	// Customize the Application Image property's appearance and behavior
-
-	AppImageWidgetRow = &ApplicationInfoCategory.AddCustomRow(FText::FromString("Application Image"))
+		AppNameWidgetRow = &ApplicationInfoCategory.AddCustomRow(FText::FromString("Application Name"))
 		.NameContent()
 		[
-			ImagePathProperty->CreatePropertyNameWidget()
+			ApplicationNameProperty->CreatePropertyNameWidget()
 		]
 		.ValueContent()
 		[
-			SNew(SExternalImageReference, GetApplicationImageFilename(false), GetApplicationImageFilename(true))
-			.IsEnabled_Lambda([ImagePathProperty]() -> bool
-			{
-				return ImagePathProperty->IsEditable();
-			})
-			.FileDescription(LOCTEXT("Edgegap Appliction Image", "Edgegap Appliction Image"))
-			.OnPreExternalImageCopy(FOnPreExternalImageCopy::CreateSP(this, &FEdgegapSettingsDetails::HandlePreExternalIconCopy))
-			.OnGetPickerPath(FOnGetPickerPath::CreateSP(this, &FEdgegapSettingsDetails::GetPickerPath))
-			.OnPostExternalImageCopy(FOnPostExternalImageCopy::CreateSP(this, &FEdgegapSettingsDetails::HandlePostExternalIconCopy))
+			ApplicationNameProperty->CreatePropertyValueWidget()
 		];
+	}
+
+	if (ImagePathProperty.IsValid())
+	{
+		DetailBuilder.HideProperty(ImagePathProperty);
+
+		// Customize the Application Image property's appearance and behavior
+
+		AppImageWidgetRow = &ApplicationInfoCategory.AddCustomRow(FText::FromString("Application Image"))
+			.NameContent()
+			[
+				ImagePathProperty->CreatePropertyNameWidget()
+			]
+			.ValueContent()
+			[
+				SNew(SExternalImageReference, GetApplicationImageFilename(false), GetApplicationImageFilename(true))
+				.IsEnabled_Lambda([ImagePathProperty]() -> bool
+				{
+					return ImagePathProperty.IsValid() && ImagePathProperty->IsEditable();
+				})
+				.FileDescription(LOCTEXT("Edgegap Appliction Image", "Edgegap Appliction Image"))
+				.OnPreExternalImageCopy(FOnPreExternalImageCopy::CreateSP(this, &FEdgegapSettingsDetails::HandlePreExternalIconCopy))
+				.OnGetPickerPath(FOnGetPickerPath::CreateSP(this, &FEdgegapSettingsDetails::GetPickerPath))
+				.OnPostExternalImageCopy(FOnPostExternalImageCopy::CreateSP(this, &FEdgegapSettingsDetails::HandlePostExternalIconCopy))
+			];
+	}
 
 	// Create Application Button
 
@@ -650,13 +719,9 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 			SAssignNew(CreateApplication_SBtn, SButton)
 			.IsEnabled_Lambda([ApplicationNameProperty]() -> bool
 			{
-				return ApplicationNameProperty->IsEditable();
+				return ApplicationNameProperty.IsValid() && ApplicationNameProperty->IsEditable();
 			})
 			.Text(FText::FromString("Create Application"))
-			.IsEnabled_Lambda([ApplicationNameProperty]() -> bool
-			{
-				return ApplicationNameProperty->IsEditable();
-			})
 			.OnClicked(FOnClicked::CreateLambda([this]() {
 				CreateApplication_SBtn->SetEnabled(false);
 
@@ -701,7 +766,15 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 		.Padding(2.f)
 		[
 			SAssignNew(CreateBuilAndPushBtn_SBtn, SButton)
-			.Text(FText::FromString("Build and Push"))
+			.Text_Lambda([]() -> FText
+			{
+				const UEdgegapSettings* EGSettings = GetDefault<UEdgegapSettings>();
+				if (EGSettings->BuildMode == EEdgegapBuildMode::DockerBuild)
+				{
+					return FText::FromString("Docker Build and Push");
+				}
+				return FText::FromString("Build and Push");
+			})
 			.IsEnabled_Lambda([this, RegistryProperty, ImageRepositoryProperty, PrivateRegistryUsernameProperty, PrivateRegistryTokenProperty]() -> bool
 			{
 				FString RegistryStr;
@@ -714,12 +787,27 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 				PrivateRegistryUsernameProperty->GetValue(PrivateRegistryUsernameStr);
 				PrivateRegistryTokenProperty->GetValue(PrivateRegistryTokenStr);
 
-				const bool bIsClickable = !RegistryStr.IsEmpty() && !ImageRepositoryStr.IsEmpty() && !PrivateRegistryUsernameStr.IsEmpty() && !PrivateRegistryTokenStr.IsEmpty();
+				bool bIsClickable = !RegistryStr.IsEmpty() && !ImageRepositoryStr.IsEmpty() && !PrivateRegistryUsernameStr.IsEmpty() && !PrivateRegistryTokenStr.IsEmpty();
+
+				// For Docker Build mode, also validate GitHub credentials
+				const UEdgegapSettings* EGSettings = GetDefault<UEdgegapSettings>();
+				if (EGSettings->BuildMode == EEdgegapBuildMode::DockerBuild)
+				{
+					bIsClickable = bIsClickable && !EGSettings->GitHubUsername.IsEmpty() && !EGSettings->GitHubPAT.IsEmpty() && !EGSettings->UEDockerImageTag.IsEmpty();
+				}
 
 				return bIsClickable;
  			})
 			.OnClicked(FOnClicked::CreateLambda([this]() {
-				PackageProject("linux");
+				const UEdgegapSettings* EGSettings = GetDefault<UEdgegapSettings>();
+				if (EGSettings->BuildMode == EEdgegapBuildMode::DockerBuild)
+				{
+					DockerBuildAndPush();
+				}
+				else
+				{
+					PackageProject("linux");
+				}
 				return FReply::Handled();
 			}))
 		];
@@ -783,7 +871,6 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	DepStatusCategory.AddCustomRow(LOCTEXT("CurrentDeployments", "Current Deployments"))
 		[
 			SAssignNew(DeploymentStatusListItemListView, SDeploymentStatusListItemListView)
-			.ItemHeight(20.0f)
 		.ListItemsSource(&DeployStatusOverrideListSource)
 		.OnGenerateRow(this, &FEdgegapSettingsDetails::HandleGenerateDeployStatusWidget)
 		.SelectionMode(ESelectionMode::None)
@@ -825,6 +912,60 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 		]
 	)
 		];
+
+	// --- Server Browser Key Warnings
+	IDetailCategoryBuilder& ServerBrowserCategory = DetailBuilder.EditCategory("Server Browser");
+
+	ServerBrowserCategory.AddCustomRow(FText::FromString("SBKeyInfo"))
+	[
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(4, 4)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0, 0, 4, 0)
+			[
+				SNew(SImage)
+				.Image(FAppStyle::GetBrush("Icons.InfoWithColor"))
+			]
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("SBServerTokenWarning", "Server Token is stored in DefaultEditor.ini and will not be included in builds. For deployed servers, set the EDGEGAP_SB_SERVER_TOKEN environment variable."))
+				.AutoWrapText(true)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			]
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(4, 2)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0, 0, 4, 0)
+			[
+				SNew(SImage)
+				.Image(FAppStyle::GetBrush("Icons.InfoWithColor"))
+			]
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("SBClientTokenInfo", "Client Token and Server Browser URL are stored in DefaultEngine.ini and will be included in builds."))
+				.AutoWrapText(true)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			]
+		]
+	];
 
 	// --- Ad
 
@@ -945,23 +1086,24 @@ bool FEdgegapSettingsDetails::CheckDockerRunning()
 	FString ErrString;
 
 	UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
-	if(EdgegapSettings->DockerPath.IsEmpty())
+	const FString DockerPath = EdgegapSettings->DockerPath;
+	if(DockerPath.IsEmpty())
 	{
 		UE_LOG(EdgegapLog, Error, TEXT("Docker path is empty. Please set the path to Docker in the Edgegap settings."));
 		return false;
 	}
 	//Check if file exists
-	if (!FPaths::FileExists(EdgegapSettings->DockerPath))
+	if (!FPaths::FileExists(DockerPath))
 	{
 		UE_LOG(EdgegapLog, Error, TEXT("Docker path is invalid. Please set the path to Docker in the Edgegap settings."));
 		return false;
 	}
-	
+
 	// Command to check if Docker is running
 	FString CommandLine = TEXT("info");
-	
+
 	// Executes the docker info command using the full path
-	FPlatformProcess::ExecProcess(*EdgegapSettings->DockerPath, *CommandLine, &ReturnCode, &OutString, &ErrString);
+	FPlatformProcess::ExecProcess(*DockerPath, *CommandLine, &ReturnCode, &OutString, &ErrString);
 
 	if (ReturnCode != 0)
 	{
@@ -1047,24 +1189,32 @@ void FEdgegapSettingsDetails::PackageProject(const FName IniPlatformName)
 		BuildCookRunParams += FString::Printf(TEXT(" -project=\"%s\""), *ProjectPath);
 	}
 
+	UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
+	const FString TargetName = EdgegapSettings->OverridableTargetName;
+#if ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 7
+	if(TargetName.IsEmpty())
+	{
+		BuildCookRunParams += FString::Printf(TEXT(" -target=%s"), *FString::Printf(TEXT("%sServer"), FApp::GetProjectName()));
+	}
+	else
+	{
+		BuildCookRunParams += FString::Printf(TEXT(" -target=%s"), *TargetName);
+	}
+#else
 	bool bIsProjectBuildTarget = false;
 	const FTargetInfo* BuildTargetInfo = PlatformsSettings->GetBuildTargetInfoForPlatform(IniPlatformName, bIsProjectBuildTarget);
-
-	// Only add the -Target=... argument for code projects. Content projects will return UnrealGame/UnrealClient/UnrealServer here, but
-	// may need a temporary target generated to enable/disable plugins. Specifying -Target in these cases will cause packaging to fail,
-	// since it'll have a different name.
 	if (BuildTargetInfo && bIsProjectBuildTarget)
 	{
-		UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
-		if(EdgegapSettings->OverridableTargetName.IsEmpty())
+		if(TargetName.IsEmpty())
 		{
 			BuildCookRunParams += FString::Printf(TEXT(" -target=%s"), *FString::Printf(TEXT("%sServer"), FApp::GetProjectName()));
 		}
 		else
 		{
-			BuildCookRunParams += FString::Printf(TEXT(" -target=%s"), *EdgegapSettings->OverridableTargetName);
+			BuildCookRunParams += FString::Printf(TEXT(" -target=%s"), *TargetName);
 		}
 	}
+#endif
 
 	// set the platform we are preparing content for
 	{
@@ -1191,15 +1341,15 @@ void FEdgegapSettingsDetails::PackageProject(const FName IniPlatformName)
 			BuildCookRunParams += FString::Printf(TEXT(" -manifests -createchunkinstall -chunkinstalldirectory=\"%s\" -chunkinstallversion=%s"), *(PackagingSettings->HttpChunkInstallDataDirectory.Path), *(PackagingSettings->HttpChunkInstallDataVersion));
 		}
 
+#if ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 7
+		EProjectPackagingBuildConfigurations BuildConfig = EProjectPackagingBuildConfigurations::PPBC_Development;
+#else
 		EProjectPackagingBuildConfigurations BuildConfig = PlatformsSettings->GetBuildConfigurationForPlatform(IniPlatformName);
-		UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
-		if(EdgegapSettings)
+#endif
+		const UEdgegapSettings* EdgegapSettingsLocal = GetMutableDefault<UEdgegapSettings>();
+		if(EdgegapSettingsLocal)
 		{
-			BuildConfig = EdgegapSettings->BuildConfiguration;
-		}
-		else
-		{
-			BuildConfig = EProjectPackagingBuildConfigurations::PPBC_Development;
+			BuildConfig = EdgegapSettingsLocal->BuildConfiguration;
 		}
 		const UProjectPackagingSettings::FConfigurationInfo& ConfigurationInfo = UProjectPackagingSettings::ConfigurationInfo[(int)BuildConfig];
 
@@ -1247,15 +1397,15 @@ void FEdgegapSettingsDetails::AddMessageLog(const FText& Text, const FText& Deta
 
 void FEdgegapSettingsDetails::Containerize(FString DockerFilePath, FString StartScriptPath, FString ServerBuildPath, FString RegistryURL, FString ImageRepository,  FString Tag, FString PrivateUsername, FString PrivateToken)
 {
-	const UEdgegapSettings* EdgegapSettings = GetDefault<UEdgegapSettings>();
+	const UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
+	const FString LocalAppName = EdgegapSettings->ApplicationName.ToString();
 	const UGeneralProjectSettings& ProjectSettings = *GetDefault<UGeneralProjectSettings>();
 
 	_PrivateUsername = PrivateUsername;
 	_PrivateToken= PrivateToken;
 	_RegistryURL = RegistryURL;
 
-	const FString _AppName = EdgegapSettings->ApplicationName.ToString();
-	_ImageName = FEdgegapSettingsDetails::MakeImageName(RegistryURL, ImageRepository, _AppName, Tag);
+	_ImageName = FEdgegapSettingsDetails::MakeImageName(RegistryURL, ImageRepository, LocalAppName, Tag);
 
 	UProjectPackagingSettings* PackagingSettings = Cast<UProjectPackagingSettings>(UProjectPackagingSettings::StaticClass()->GetDefaultObject());
 	UPlatformsMenuSettings* PlatformsSettings = GetMutableDefault<UPlatformsMenuSettings>();
@@ -1318,11 +1468,257 @@ void FEdgegapSettingsDetails::DockerLogin(FString RegistryURL, FString PrivateUs
 #endif
 }
 
+// --- Docker Build Pipeline ---
+
+void FEdgegapSettingsDetails::DockerBuildAndPush()
+{
+	if (!CheckDockerRunning())
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("DockerNotRunning", "Docker isn't running - please start Docker and try again!"));
+		return;
+	}
+
+	const UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
+
+	// Validate Docker Build settings
+	if (EdgegapSettings->GitHubUsername.IsEmpty() || EdgegapSettings->GitHubPAT.IsEmpty())
+	{
+		FMessageDialog::Open(EAppMsgType::Ok,
+			LOCTEXT("MissingGitHubCredentials",
+				"GitHub credentials are required for Docker Build mode.\nPlease set your GitHub Username and PAT in Build Configurations > Docker Build."));
+		return;
+	}
+
+	if (EdgegapSettings->UEDockerImageTag.IsEmpty())
+	{
+		FMessageDialog::Open(EAppMsgType::Ok,
+			LOCTEXT("MissingImageTag", "UE Docker Image Tag is required for Docker Build mode."));
+		return;
+	}
+
+	// Warn user about first-time build duration
+	EAppReturnType::Type UserResponse = FMessageDialog::Open(EAppMsgType::OkCancel,
+		LOCTEXT("DockerBuildWarning",
+			"Docker Build will build the dedicated server inside a Docker container.\n\n"
+			"The first build may take a long time (~30+ minutes) as it needs to pull the Unreal Engine Docker image (~30GB).\n"
+			"Subsequent builds will be much faster due to Docker caching.\n\n"
+			"Make sure you have sufficient disk space (50GB+).\n\n"
+			"Press OK to continue."));
+
+	if (UserResponse != EAppReturnType::Ok)
+	{
+		return;
+	}
+
+	// Prepare the tag
+	_RecentTag = FDateTime::Now().ToString(TEXT("%Y-%m-%d_%H-%M"));
+
+	// Save all dirty packages
+	SaveAll();
+
+	// Generate Dockerfile, StartServer.sh, and .dockerignore in the project root
+	FString ProjectDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
+
+	FString DockerfileContent = GenerateMultiStageDockerfile();
+	FString DockerfilePath = FPaths::Combine(ProjectDir, TEXT("Dockerfile"));
+	FFileHelper::SaveStringToFile(DockerfileContent, *DockerfilePath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+
+	FString StartServerContent = GenerateDockerBuildStartServerScript();
+	FString StartServerPath = FPaths::Combine(ProjectDir, TEXT("StartServer.sh"));
+	FFileHelper::SaveStringToFile(StartServerContent, *StartServerPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+
+	FString DockerIgnoreContent = GenerateDockerIgnoreContent();
+	FString DockerIgnorePath = FPaths::Combine(ProjectDir, TEXT(".dockerignore"));
+	FFileHelper::SaveStringToFile(DockerIgnoreContent, *DockerIgnorePath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+
+	UE_LOG(EdgegapLog, Log, TEXT("Generated Dockerfile, StartServer.sh, and .dockerignore in %s"), *ProjectDir);
+
+	// Step 1: Login to ghcr.io
+	DockerBuild_LoginToGHCR(EdgegapSettings->GitHubUsername, EdgegapSettings->GitHubPAT);
+}
+
+FString FEdgegapSettingsDetails::GenerateMultiStageDockerfile()
+{
+	const UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
+
+	const FString ImageTag = EdgegapSettings->UEDockerImageTag;
+	const FString TargetName = EdgegapSettings->OverridableTargetName.IsEmpty()
+		? FString::Printf(TEXT("%sServer"), FApp::GetProjectName())
+		: EdgegapSettings->OverridableTargetName;
+
+	const FString ProjectName = FString(FApp::GetProjectName());
+
+	// Determine server config string
+	const UProjectPackagingSettings::FConfigurationInfo& ConfigInfo =
+		UProjectPackagingSettings::ConfigurationInfo[(int)EdgegapSettings->BuildConfiguration];
+	FString ServerConfig = LexToString(ConfigInfo.Configuration);
+
+	FString ExtraBuildArgs = EdgegapSettings->DockerExtraBuildArgs;
+
+	// Build the Dockerfile content
+	FString Dockerfile;
+
+	// Builder stage
+	Dockerfile += FString::Printf(TEXT("ARG UE_IMAGE_TAG=%s\n"), *ImageTag);
+	Dockerfile += TEXT("FROM ghcr.io/epicgames/unreal-engine:${UE_IMAGE_TAG} AS builder\n\n");
+	Dockerfile += TEXT("# Copy project into the container\n");
+	Dockerfile += TEXT("COPY --chown=ue4:ue4 . /tmp/project\n\n");
+	Dockerfile += TEXT("# Build the dedicated server\n");
+	Dockerfile += FString::Printf(
+		TEXT("RUN /home/ue4/UnrealEngine/Engine/Build/BatchFiles/RunUAT.sh BuildCookRun \\\n")
+		TEXT("    -serverconfig=%s \\\n")
+		TEXT("    -project=/tmp/project/%s.uproject \\\n")
+		TEXT("    -target=%s \\\n")
+		TEXT("    -utf8output -nodebuginfo -allmaps -noP4 -cook -ddc=NoZenLocalFallback -build -stage -prereqs -pak -package -archive \\\n")
+		TEXT("    -archivedirectory=/tmp/project/Packaged \\\n")
+		TEXT("    -platform=Linux -server -noclient"),
+		*ServerConfig, *ProjectName, *TargetName);
+
+	if (!ExtraBuildArgs.IsEmpty())
+	{
+		Dockerfile += FString::Printf(TEXT(" \\\n    %s"), *ExtraBuildArgs);
+	}
+	Dockerfile += TEXT("\n\n");
+
+	// Runtime stage
+	Dockerfile += TEXT("# ---- Runtime stage ----\n");
+	Dockerfile += TEXT("FROM ubuntu:22.04 AS runtime\n\n");
+	Dockerfile += TEXT("RUN apt-get update && apt-get install -y jq curl && \\\n");
+	Dockerfile += TEXT("    apt-get clean && rm -rf /var/lib/{apt,dpkg,cache,log}/\n\n");
+	Dockerfile += TEXT("RUN useradd -rm -d /home/ue4 -s /bin/bash -u 1000 ue4\n");
+	Dockerfile += TEXT("USER ue4\n\n");
+	Dockerfile += TEXT("COPY --from=builder --chown=ue4:ue4 /tmp/project/Packaged/LinuxServer /home/ue4/project\n");
+	Dockerfile += TEXT("COPY --chown=ue4:ue4 StartServer.sh /home/ue4/project/StartServer.sh\n");
+	Dockerfile += TEXT("RUN sed -i 's/\\r$//' /home/ue4/project/StartServer.sh\n");
+	Dockerfile += TEXT("RUN chmod +x /home/ue4/project/StartServer.sh\n\n");
+	Dockerfile += TEXT("WORKDIR /home/ue4/project\n");
+	Dockerfile += TEXT("CMD [\"/home/ue4/project/StartServer.sh\"]\n");
+
+	return Dockerfile;
+}
+
+FString FEdgegapSettingsDetails::GenerateDockerBuildStartServerScript()
+{
+	const FString TargetName = GetMutableDefault<UEdgegapSettings>()->OverridableTargetName.IsEmpty()
+		? FString::Printf(TEXT("%sServer"), FApp::GetProjectName())
+		: GetMutableDefault<UEdgegapSettings>()->OverridableTargetName;
+
+	FString Script;
+	Script += TEXT("#!/bin/sh\n\n");
+	Script += TEXT("GAME_PORT=$(echo $ARBITRIUM_PORTS_MAPPING | jq '.ports.gameport.internal')\n\n");
+	Script += TEXT("printenv\n");
+	Script += TEXT("env\n\n");
+	Script += TEXT("# Function to call Edgegap self-stop API\n");
+	Script += TEXT("call_stop_api() {\n");
+	Script += TEXT("    local EXIT_CODE=$1\n");
+	Script += TEXT("    local REQUEST_ID=\"${EG_REQUEST_ID:-${EDGEGAP_REQUEST_ID:-${EDGE_REQUEST_ID:-${ARBITRIUM_REQUEST_ID}}}}\"\n");
+	Script += TEXT("    local API_KEY=\"${EG_API_KEY:-${EDGEGAP_API_KEY:-${EDGE_API_KEY}}}\"\n\n");
+	Script += TEXT("    if [ -z \"$REQUEST_ID\" ]; then\n");
+	Script += TEXT("        echo \"No Edgegap request ID found\"\n");
+	Script += TEXT("        exit $EXIT_CODE\n");
+	Script += TEXT("    fi\n\n");
+	Script += TEXT("    if [ -z \"$API_KEY\" ]; then\n");
+	Script += TEXT("        echo \"No Edgegap API key found\"\n");
+	Script += TEXT("        exit $EXIT_CODE\n");
+	Script += TEXT("    fi\n\n");
+	Script += TEXT("    echo \"Calling Edgegap self-stop API for request ID: $REQUEST_ID\"\n");
+	Script += TEXT("    curl -s -X DELETE \\\n");
+	Script += TEXT("        -H \"Content-Type: application/json\" \\\n");
+	Script += TEXT("        -H \"Authorization: $API_KEY\" \\\n");
+	Script += TEXT("        \"https://api.edgegap.com/v1/stop/$REQUEST_ID\" \\\n");
+	Script += TEXT("        --max-time 5\n\n");
+	Script += TEXT("    exit $EXIT_CODE\n");
+	Script += TEXT("}\n\n");
+	Script += TEXT("trap 'call_stop_api $?' EXIT INT TERM\n\n");
+	Script += FString::Printf(TEXT("$(dirname \"$0\")/%s.sh -log -PORT=$GAME_PORT\n"), *TargetName);
+	Script += TEXT("SERVER_EXIT_CODE=$?\n");
+	Script += TEXT("call_stop_api $SERVER_EXIT_CODE\n");
+
+	return Script;
+}
+
+FString FEdgegapSettingsDetails::GenerateDockerIgnoreContent()
+{
+	FString Content;
+	Content += TEXT(".git\n");
+	Content += TEXT("Saved/\n");
+	Content += TEXT("Intermediate/\n");
+	Content += TEXT("DerivedDataCache/\n");
+	Content += TEXT("Binaries/\n");
+	Content += TEXT("Build/\n");
+	Content += TEXT("*.sln\n");
+	Content += TEXT("*.xcworkspace\n");
+	Content += TEXT("*.xcodeproj\n");
+	Content += TEXT("*.pdb\n");
+	Content += TEXT("Plugins/*/Intermediate/\n");
+	Content += TEXT("Plugins/*/Binaries/\n");
+	return Content;
+}
+
+void FEdgegapSettingsDetails::DockerBuild_LoginToGHCR(FString GitHubUsername, FString GitHubPAT)
+{
+#if PLATFORM_WINDOWS
+	FString CommandLine = FString::Printf(
+		TEXT("echo %s | docker login ghcr.io -u %s --password-stdin"),
+		*GitHubPAT, *GitHubUsername);
+#else
+	FString CommandLine = FString::Printf(
+		TEXT("echo '%s' | docker login ghcr.io -u '%s' --password-stdin"),
+		*GitHubPAT, *GitHubUsername);
+#endif
+
+	UE_LOG(EdgegapLog, Log, TEXT("Logging into ghcr.io as %s"), *GitHubUsername);
+
+	IUCMDHelperModule::Get().CreateUcmdTask(
+		CommandLine,
+		LOCTEXT("DisplayName", "Docker"),
+		LOCTEXT("GHCRLoginTaskName", "Logging into ghcr.io"),
+		LOCTEXT("GHCRLoginShortName", "GHCR Login"),
+		FAppStyle::GetBrush(TEXT("MainFrame.PackageProject")),
+#if PLATFORM_WINDOWS
+		false,
+#else
+		false,
+#endif
+		&OnDockerBuild_GHCRLoginCallback);
+}
+
+void FEdgegapSettingsDetails::DockerBuild_Build(FString ImageName, FString ProjectDir)
+{
+	// Detect platform for ARM Macs
+	FString PlatformFlag;
+#if PLATFORM_MAC
+	int32 ReturnCode;
+	FString ArchOutput;
+	FString ErrString;
+	FPlatformProcess::ExecProcess(TEXT("/usr/bin/uname"), TEXT("-m"), &ReturnCode, &ArchOutput, &ErrString);
+	ArchOutput.TrimStartAndEndInline();
+	if (ArchOutput.Contains(TEXT("arm64")) || ArchOutput.Contains(TEXT("aarch64")))
+	{
+		PlatformFlag = TEXT("--platform linux/amd64 ");
+	}
+#endif
+
+	FString CommandLine = FString::Printf(
+		TEXT("docker build %s-t \"%s\" \"%s\""),
+		*PlatformFlag, *ImageName, *ProjectDir);
+
+	UE_LOG(EdgegapLog, Log, TEXT("Docker Build command: %s"), *CommandLine);
+
+	IUCMDHelperModule::Get().CreateUcmdTask(
+		CommandLine,
+		LOCTEXT("DisplayName", "Docker"),
+		LOCTEXT("DockerBuildTaskName", "Building server in Docker (this may take a while)"),
+		LOCTEXT("DockerBuildShortName", "Docker Build"),
+		FAppStyle::GetBrush(TEXT("MainFrame.PackageProject")),
+		false,
+		&OnDockerBuild_BuildCallback);
+}
+
 void FEdgegapSettingsDetails::Request_VerifyToken()
 {
-	const UEdgegapSettings* EdgegapSettings = GetDefault<UEdgegapSettings>();
-
-	FString APIToken = EdgegapSettings->APIToken.APIToken;
+	const UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
+	FString APIToken = EdgegapSettings->AuthorizationKey;
 
 	const FString endpoint = FString::Printf(TEXT("v1/wizard/init-quick-start"));
 
@@ -1363,8 +1759,6 @@ void FEdgegapSettingsDetails::Request_VerifyToken()
 	// Binding
 	Request->OnProcessRequestComplete().BindLambda([this](FHttpRequestPtr Request, FHttpResponsePtr ResponsePtr, bool bWasSuccessful)
 		{
-			const UEdgegapSettings* EdgegapSettings = GetDefault<UEdgegapSettings>();
-
 			int32 ResponseCode = ResponsePtr->GetResponseCode();
 
 			if (!bWasSuccessful || ResponseCode < 200 || ResponseCode > 299)
@@ -1460,10 +1854,9 @@ void FEdgegapSettingsDetails::Request_CreateApplication(TSharedPtr<SButton> InCr
 		return;
 	}
 
-	const UEdgegapSettings* EdgegapSettings = GetDefault<UEdgegapSettings>();
-
+	const UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
 	FString AppName = EdgegapSettings->ApplicationName.ToString();
-	FString APIToken = EdgegapSettings->APIToken.APIToken;
+	FString APIToken = EdgegapSettings->AuthorizationKey;
 	FString ImagePath = EdgegapSettings->ImagePath.FilePath;
 
 	const FString endpoint = "v1/app";
@@ -1589,10 +1982,9 @@ void FEdgegapSettingsDetails::Request_RegistryCredentials()
 		return;
 	}
 
-	const UEdgegapSettings* EdgegapSettings = GetDefault<UEdgegapSettings>();
-
+	const UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
 	FString AppName = EdgegapSettings->ApplicationName.ToString();
-	FString APIToken = EdgegapSettings->APIToken.APIToken;
+	FString APIToken = EdgegapSettings->AuthorizationKey;
 
 	const FString endpoint = "v1/wizard/registry-credentials";
 	FString URL = FString::Printf(TEXT("%s%s"), TEXT(EDGEGAP_API_URL), *endpoint);
@@ -1740,7 +2132,7 @@ void FEdgegapSettingsDetails::CreateVersion(FString AppName, FString VersionName
 	JsonWriter->WriteValue("inject_context_env", true);
 	JsonWriter->WriteValue("force_cache", false);
 	JsonWriter->WriteValue("whitelisting_active", false);
-	
+
 	// Add default environment variables
 	if (EGSettings && EGSettings->DefaultEnvironmentVariables.Num() > 0)
 	{
@@ -1768,7 +2160,7 @@ void FEdgegapSettingsDetails::CreateVersion(FString AppName, FString VersionName
 	}
 
 	JsonWriter->WriteArrayStart(TEXT("ports"));
-	
+
 	// Add additional ports from settings
 	if (EGSettings && EGSettings->AdditionalPorts.Num() > 0)
 	{
@@ -1931,8 +2323,6 @@ void FEdgegapSettingsDetails::Request_DeployApp(FString AppName, FString Version
 			if (!Response.IsEmpty())
 			{
 				// Deployment Request
-				
-				const UEdgegapSettings* EdgegapSettings = GetDefault<UEdgegapSettings>();
 
 				const FString endpoint = FString::Printf(TEXT("v1/deploy"));
 
@@ -2181,7 +2571,7 @@ void FEdgegapSettingsDetails::Request_GetDeploymentsInfo(FString API_key, TShare
 		{
 			auto listView = ESD->DeploymentStatusListItemListView;
 
-			if (listView && &ESD->DeployStatusOverrideListSource)
+			if (listView)
 			{
 				listView->SetItemsSource(&ESD->DeployStatusOverrideListSource);
 			}
@@ -2239,9 +2629,8 @@ void FEdgegapSettingsDetails::Request_StopDeploy(FString RequestID, FString API_
 			return;
 		}
 
-		const UEdgegapSettings* EdgegapSettings = GetDefault<UEdgegapSettings>();
-
-		const FString _APIToken = EdgegapSettings->APIToken.APIToken;
+		const UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
+		const FString _APIToken = EdgegapSettings->AuthorizationKey;
 
 		Request_GetDeploymentsInfo(_APIToken, nullptr);
 	});

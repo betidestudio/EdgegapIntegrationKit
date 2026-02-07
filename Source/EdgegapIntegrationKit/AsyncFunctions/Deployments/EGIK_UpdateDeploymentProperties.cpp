@@ -1,52 +1,37 @@
-﻿// Copyright (c) 2024 Betide Studio. All Rights Reserved.
-
+// Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_UpdateDeploymentProperties.h"
 
-UEGIK_UpdateDeploymentProperties* UEGIK_UpdateDeploymentProperties::UpdateDeploymentProperties(
-	FEGIK_UpdateDeploymentPropertiesRequest Request)
+UEGIK_UpdateDeploymentProperties* UEGIK_UpdateDeploymentProperties::UpdateDeploymentProperties(FEGIK_UpdateDeploymentPropertiesRequest Request)
 {
 	UEGIK_UpdateDeploymentProperties* Node = NewObject<UEGIK_UpdateDeploymentProperties>();
 	Node->Var_Request = Request;
 	return Node;
 }
 
-void UEGIK_UpdateDeploymentProperties::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest,
-	TSharedPtr<IHttpResponse> HttpResponse, bool bArg)
+FString UEGIK_UpdateDeploymentProperties::GetEndpointURL() const
 {
-	if (HttpResponse.IsValid())
-	{
-		if (EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
-		{
-			OnSuccess.Broadcast(Var_Request.bIsJoinableBySession, FEGIK_ErrorStruct());
-		}
-		else
-		{
-			OnFailure.Broadcast(Var_Request.bIsJoinableBySession, FEGIK_ErrorStruct(HttpResponse->GetResponseCode(), "Failed to update deployment properties"));
-		}
-	}
-	else
-	{
-		OnFailure.Broadcast(Var_Request.bIsJoinableBySession, FEGIK_ErrorStruct(0, "Failed to deserialize response"));
-	}
-	SetReadyToDestroy();
-	MarkAsGarbage();
+	return FString::Printf(TEXT("https://api.edgegap.com/v1/deployments/%s"), *Var_Request.RequestId);
 }
 
-void UEGIK_UpdateDeploymentProperties::Activate()
+EEGIK_HttpVerb UEGIK_UpdateDeploymentProperties::GetHTTPVerb() const
 {
-	Super::Activate();
-	FHttpModule* Http = &FHttpModule::Get();
-	TSharedRef<IHttpRequest> Request = Http->CreateRequest();
-	Request->SetVerb("PATCH");
-	Request->SetURL("https://api.edgegap.com/v1/deployments/" + Var_Request.RequestId);
-	Request->SetHeader("Content-Type", "application/json");
-	Request->SetHeader("Authorization", UEGIKBlueprintFunctionLibrary::GetAuthorizationKey());
-	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_UpdateDeploymentProperties::OnResponseReceived);
-	if (!Request->ProcessRequest())
-	{
-		OnFailure.Broadcast(false, FEGIK_ErrorStruct(0, "Failed to process request"));
-		SetReadyToDestroy();
-		MarkAsGarbage();
-	}
+	return EEGIK_HttpVerb::PATCH;
+}
+
+TSharedPtr<FJsonObject> UEGIK_UpdateDeploymentProperties::BuildRequestBody() const
+{
+	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
+	JsonObject->SetBoolField(TEXT("is_joinable_by_session"), Var_Request.bIsJoinableBySession);
+	return JsonObject;
+}
+
+void UEGIK_UpdateDeploymentProperties::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)
+{
+	OnSuccess.Broadcast(Var_Request.bIsJoinableBySession, FEGIK_ErrorStruct());
+}
+
+void UEGIK_UpdateDeploymentProperties::HandleError(int32 ErrorCode, const FString& ErrorMessage)
+{
+	OnFailure.Broadcast(false, FEGIK_ErrorStruct(ErrorCode, ErrorMessage));
 }

@@ -1,5 +1,4 @@
-﻿// Copyright (c) 2024 Betide Studio. All Rights Reserved.
-
+// Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_GetRelaySession.h"
 
@@ -10,51 +9,29 @@ UEGIK_GetRelaySession* UEGIK_GetRelaySession::GetRelaySession(FString SessionId)
 	return Node;
 }
 
-void UEGIK_GetRelaySession::Activate()
+FString UEGIK_GetRelaySession::GetEndpointURL() const
 {
-	Super::Activate();
-	FHttpModule* Http = &FHttpModule::Get();
-	TSharedRef<IHttpRequest> Request = Http->CreateRequest();
-	Request->SetVerb("GET");
-	Request->SetURL("https://api.edgegap.com/v1/relays/sessions/" + Var_SessionId);
-	Request->SetHeader("Authorization", UEGIKBlueprintFunctionLibrary::GetAuthorizationKey());
-	Request->SetHeader("Content-Type", "application/json");
-	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_GetRelaySession::OnResponseReceived);
-	if (!Request->ProcessRequest())
-	{
-		OnFailure.Broadcast(FEGIK_RelaySessionInfo(), FEGIK_ErrorStruct(0, "Failed to process request"));
-		SetReadyToDestroy();
-		MarkAsGarbage();
-	}
+	return FString::Printf(TEXT("https://api.edgegap.com/v1/relays/sessions/%s"), *Var_SessionId);
 }
 
-void UEGIK_GetRelaySession::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest,
-	TSharedPtr<IHttpResponse> HttpResponse, bool bArg)
+EEGIK_HttpVerb UEGIK_GetRelaySession::GetHTTPVerb() const
 {
-	if (HttpResponse.IsValid())
+	return EEGIK_HttpVerb::GET;
+}
+
+void UEGIK_GetRelaySession::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)
+{
+	if (JsonObject.IsValid())
 	{
-		if (EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
-		{
-			TSharedPtr<FJsonObject> JsonObject;
-			TSharedRef<TJsonReader<TCHAR>> Reader = TJsonReaderFactory<TCHAR>::Create(HttpResponse->GetContentAsString());
-			if (FJsonSerializer::Deserialize(Reader, JsonObject))
-			{
-				OnSuccess.Broadcast(JsonObject, FEGIK_ErrorStruct());
-			}
-			else
-			{
-				OnFailure.Broadcast(FEGIK_RelaySessionInfo(), FEGIK_ErrorStruct(0, "Failed to deserialize response"));
-			}
-		}
-		else
-		{
-			OnFailure.Broadcast(FEGIK_RelaySessionInfo(), FEGIK_ErrorStruct(HttpResponse->GetResponseCode(), HttpResponse->GetContentAsString()));
-		}
+		OnSuccess.Broadcast(JsonObject, FEGIK_ErrorStruct());
 	}
 	else
 	{
 		OnFailure.Broadcast(FEGIK_RelaySessionInfo(), FEGIK_ErrorStruct(0, "Failed to deserialize response"));
 	}
-	SetReadyToDestroy();
-	MarkAsGarbage();
+}
+
+void UEGIK_GetRelaySession::HandleError(int32 ErrorCode, const FString& ErrorMessage)
+{
+	OnFailure.Broadcast(FEGIK_RelaySessionInfo(), FEGIK_ErrorStruct(ErrorCode, ErrorMessage));
 }

@@ -1,12 +1,9 @@
-﻿// Copyright (c) 2024 Betide Studio. All Rights Reserved.
+// Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HttpModule.h"
-#include "Interfaces/IHttpResponse.h"
-#include "EGIKBlueprintFunctionLibrary.h"
-#include "Kismet/BlueprintAsyncActionBase.h"
+#include "EGIK_AsyncRequestBase.h"
 #include "EGIK_ListLocations.generated.h"
 
 USTRUCT(BlueprintType)
@@ -68,18 +65,15 @@ struct FEGIK_AvailableLocationStruct
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FListLocationsResponse, const TArray<FEGIK_AvailableLocationStruct>&, Locations, const FEGIK_ErrorStruct&, Error);
 
 UCLASS()
-class EDGEGAPINTEGRATIONKIT_API UEGIK_ListLocations : public UBlueprintAsyncActionBase
+class EDGEGAPINTEGRATIONKIT_API UEGIK_ListLocations : public UEGIK_AsyncRequestBase
 {
 	GENERATED_BODY()
 
 public:
 
-	//List all the locations available to deploy on. You can specify an application and a version to filter out the locations that don’t have enough resources to deploy this application version.
+	//List all the locations available to deploy on. You can specify an application and a version to filter out the locations that don't have enough resources to deploy this application version.
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"), Category = "Edgegap Integration Kit | Locations")
 	static UEGIK_ListLocations* ListLocations(FEGIK_ListAllLocationsRequest ListLocationsRequest);
-
-	void OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest, TSharedPtr<IHttpResponse> HttpResponse, bool bArg);
-	virtual void Activate() override;
 
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Locations")
 	FListLocationsResponse OnSuccess;
@@ -87,10 +81,16 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Locations")
 	FListLocationsResponse OnFailure;
 
+protected:
+	//~ Begin UEGIK_AsyncRequestBase Interface
+	virtual FString GetEndpointURL() const override;
+	virtual EEGIK_HttpVerb GetHTTPVerb() const override;
+	virtual void ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject) override;
+	virtual void HandleError(int32 ErrorCode, const FString& ErrorMessage) override;
+	virtual TSharedPtr<FJsonObject> BuildRequestBody() const override;
+	virtual FString GetLogCategory() const override { return TEXT("Locations"); }
+	//~ End UEGIK_AsyncRequestBase Interface
+
 private:
 	FEGIK_ListAllLocationsRequest Var_ListLocationsRequest;
-
-	
-
-	
 };

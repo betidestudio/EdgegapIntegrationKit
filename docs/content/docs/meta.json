@@ -1,0 +1,18 @@
+{
+  "title": "Documentation",
+  "root": true,
+  "pages": [
+    "index",
+    "---Setup---",
+    "getting-started",
+    "---Features---",
+    "deployments",
+    "matchmaking",
+    "server-browser",
+    "---Infrastructure---",
+    "build-pipeline",
+    "key-security",
+    "---Resources---",
+    "troubleshooting"
+  ]
+}
