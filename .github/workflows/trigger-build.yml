@@ -1,0 +1,56 @@
+name: Trigger Plugin Build
+
+on:
+  push:
+    branches:
+      - production
+    paths:
+      - 'Source/**'
+      - '*.uplugin'
+      - 'NEXT_VERSION'
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: 'Force rebuild even if no source changes'
+        required: false
+        default: false
+        type: boolean
+      version_override:
+        description: 'Override version (e.g. 2.1.0)'
+        required: false
+        default: ''
+        type: string
+      ue_versions:
+        description: 'Comma-separated UE versions (e.g. "5.5,5.6,5.7")'
+        required: false
+        default: '5.5,5.6,5.7'
+        type: string
+
+jobs:
+  dispatch:
+    name: Dispatch to Plugin Builder
+    runs-on: ubuntu-latest
+    env:
+      FORCE_BUILD: ${{ inputs.force_build || 'false' }}
+      VERSION_OVERRIDE: ${{ inputs.version_override || '' }}
+      UE_VERSIONS: ${{ inputs.ue_versions || '5.5,5.6,5.7' }}
+    steps:
+      - name: Trigger builder workflow
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.BUILDER_DISPATCH_PAT }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: 'betidestu',
+              repo: 'plugin-builder',
+              workflow_id: 'release-plugin.yml',
+              ref: 'main',
+              inputs: {
+                repo: '${{ github.repository }}',
+                ref: '${{ github.ref_name }}',
+                version_override: process.env.VERSION_OVERRIDE,
+                force_build: process.env.FORCE_BUILD,
+                ue_versions: process.env.UE_VERSIONS
+              }
+            });
+            console.log(`Build dispatched for ${{ github.repository }} @ ${{ github.sha }}`);
