@@ -32,7 +32,7 @@ public:
 
 	/**
 	 * Check if the server is running in Edgegap environment
-	 * @return True if EDGEGAP_REQUEST_ID environment variable is set
+	 * @return True if ARBITRIUM_REQUEST_ID environment variable is set
 	 */
 	UFUNCTION(BlueprintPure, Category = "Edgegap Integration Kit | Server")
 	bool IsRunningOnEdgegap() const;
@@ -50,8 +50,14 @@ public:
 	FOnServerShutdown OnServerShutdown;
 
 private:
-	/** The deployment request ID from environment */
+	/** The deployment request ID from ARBITRIUM_REQUEST_ID */
 	FString CachedRequestID;
+
+	/** The self-stop URL from ARBITRIUM_DELETE_URL */
+	FString CachedDeleteURL;
+
+	/** The self-stop token from ARBITRIUM_DELETE_TOKEN */
+	FString CachedDeleteToken;
 
 	/** Whether we're running on Edgegap (have request ID) */
 	bool bIsEdgegapEnvironment;

@@ -19,40 +19,33 @@
 void UEdgegapServerShutdownSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	
+
 	bShutdownInitiated = false;
-	
-	// Check if we're running on Edgegap by looking for request ID in various possible environment variables
-	// Edgegap/Arbitrium may use different variable names
-	CachedRequestID = FPlatformMisc::GetEnvironmentVariable(TEXT("EG_REQUEST_ID"));
-	if (CachedRequestID.IsEmpty())
-	{
-		CachedRequestID = FPlatformMisc::GetEnvironmentVariable(TEXT("EDGEGAP_REQUEST_ID"));
-	}
-	if (CachedRequestID.IsEmpty())
-	{
-		CachedRequestID = FPlatformMisc::GetEnvironmentVariable(TEXT("EDGE_REQUEST_ID"));
-	}
-	if (CachedRequestID.IsEmpty())
-	{
-		CachedRequestID = FPlatformMisc::GetEnvironmentVariable(TEXT("ARBITRIUM_REQUEST_ID"));
-	}
-	
+
+	// Read the official Edgegap-injected environment variables
+	CachedRequestID = FPlatformMisc::GetEnvironmentVariable(TEXT("ARBITRIUM_REQUEST_ID"));
+	CachedDeleteURL = FPlatformMisc::GetEnvironmentVariable(TEXT("ARBITRIUM_DELETE_URL"));
+	CachedDeleteToken = FPlatformMisc::GetEnvironmentVariable(TEXT("ARBITRIUM_DELETE_TOKEN"));
+
+	UE_LOG(LogTemp, Log, TEXT("EdgegapServerShutdown: ARBITRIUM_REQUEST_ID = '%s'"), *CachedRequestID);
+	UE_LOG(LogTemp, Log, TEXT("EdgegapServerShutdown: ARBITRIUM_DELETE_URL = '%s'"), *CachedDeleteURL);
+	UE_LOG(LogTemp, Log, TEXT("EdgegapServerShutdown: ARBITRIUM_DELETE_TOKEN = '%s'"), CachedDeleteToken.IsEmpty() ? TEXT("<not set>") : TEXT("<set>"));
+
 	bIsEdgegapEnvironment = !CachedRequestID.IsEmpty();
-	
+
 	if (bIsEdgegapEnvironment)
 	{
 		UE_LOG(LogTemp, Log, TEXT("EdgegapServerShutdown: Detected Edgegap environment. Request ID: %s"), *CachedRequestID);
-		
+
 		// Setup shutdown hooks
 		SetupShutdownHooks();
-		
+
 		// Setup crash handlers
 		SetupCrashHandlers();
 	}
 	else
 	{
-		UE_LOG(LogTemp, Log, TEXT("EdgegapServerShutdown: Not running on Edgegap (no request ID found)"));
+		UE_LOG(LogTemp, Warning, TEXT("EdgegapServerShutdown: ARBITRIUM_REQUEST_ID not found. Not running on Edgegap or env vars not propagated."));
 	}
 }
 
@@ -127,28 +120,42 @@ void UEdgegapServerShutdownSubsystem::StopDeploymentInternal(const FString& Requ
 		OnServerShutdown.Broadcast(false, TEXT("Failed to initialize HTTP module"));
 		return;
 	}
-	
-	FString AuthorizationKey = UEGIKBlueprintFunctionLibrary::GetAuthorizationKey();
-	if (AuthorizationKey.IsEmpty())
+
+	FString URL;
+	FString AuthToken;
+
+	// Preferred: use the Edgegap-injected delete URL and token
+	if (!CachedDeleteURL.IsEmpty() && !CachedDeleteToken.IsEmpty())
 	{
-		UE_LOG(LogTemp, Error, TEXT("EdgegapServerShutdown: Authorization key not found"));
-		OnServerShutdown.Broadcast(false, TEXT("Authorization key not configured"));
-		return;
+		URL = CachedDeleteURL;
+		AuthToken = CachedDeleteToken;
+		UE_LOG(LogTemp, Log, TEXT("EdgegapServerShutdown: Using ARBITRIUM_DELETE_URL for self-stop"));
 	}
-	
-	FString URL = FString::Printf(TEXT("https://api.edgegap.com/v1/stop/%s"), *RequestID);
-	
+	else
+	{
+		// Fallback: construct URL from request ID and use API key
+		AuthToken = UEGIKBlueprintFunctionLibrary::GetAuthorizationKey();
+		if (AuthToken.IsEmpty())
+		{
+			UE_LOG(LogTemp, Error, TEXT("EdgegapServerShutdown: No ARBITRIUM_DELETE_TOKEN or API key found"));
+			OnServerShutdown.Broadcast(false, TEXT("Authorization not configured (set ARBITRIUM_DELETE_TOKEN or EDGEGAP_API_KEY)"));
+			return;
+		}
+		URL = FString::Printf(TEXT("https://api.edgegap.com/v1/stop/%s"), *RequestID);
+		UE_LOG(LogTemp, Log, TEXT("EdgegapServerShutdown: Using fallback URL for self-stop"));
+	}
+
 	ShutdownRequest = Http->CreateRequest();
 	ShutdownRequest->SetURL(URL);
 	ShutdownRequest->SetVerb("DELETE");
 	ShutdownRequest->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
-	ShutdownRequest->SetHeader(TEXT("Authorization"), *AuthorizationKey);
-	ShutdownRequest->SetTimeout(5); // 5 second timeout
-	
+	ShutdownRequest->SetHeader(TEXT("Authorization"), *AuthToken);
+	ShutdownRequest->SetTimeout(5);
+
 	ShutdownRequest->OnProcessRequestComplete().BindUObject(this, &UEdgegapServerShutdownSubsystem::OnShutdownResponseReceived);
-	
-	UE_LOG(LogTemp, Log, TEXT("EdgegapServerShutdown: Calling self-stop API for request ID: %s"), *RequestID);
-	
+
+	UE_LOG(LogTemp, Log, TEXT("EdgegapServerShutdown: Calling self-stop API for request ID: %s (URL: %s)"), *RequestID, *URL);
+
 	if (!ShutdownRequest->ProcessRequest())
 	{
 		UE_LOG(LogTemp, Error, TEXT("EdgegapServerShutdown: Failed to process shutdown request"));
