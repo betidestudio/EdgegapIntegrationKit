@@ -95,6 +95,57 @@ FString UEGIKBlueprintFunctionLibrary::GetServerBrowserClientToken()
 	return Value;
 }
 
+FString UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
+{
+	// 1. Environment variable
+	FString Value = FPlatformMisc::GetEnvironmentVariable(TEXT("EDGEGAP_MM_URL"));
+	if (!Value.IsEmpty())
+	{
+		return Value;
+	}
+
+	// 2. DefaultEngine.ini (client-safe, ships with builds)
+	const FString ProjectEngineIniPath = FPaths::ProjectConfigDir() / TEXT("DefaultEngine.ini");
+	if (GConfig)
+	{
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingURL"), Value, ProjectEngineIniPath);
+	}
+
+	return Value;
+}
+
+FString UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
+{
+	// 1. Environment variables
+	FString Value = FPlatformMisc::GetEnvironmentVariable(TEXT("EDGEGAP_MM_AUTH_TOKEN"));
+	if (!Value.IsEmpty())
+	{
+		return Value;
+	}
+
+	Value = FPlatformMisc::GetEnvironmentVariable(TEXT("EDGEGAP_MATCHMAKER_AUTH_TOKEN"));
+	if (!Value.IsEmpty())
+	{
+		return Value;
+	}
+
+	// 2. DefaultEngine.ini (ships with builds)
+	const FString ProjectEngineIniPath = FPaths::ProjectConfigDir() / TEXT("DefaultEngine.ini");
+	if (GConfig)
+	{
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingAuthToken"), Value, ProjectEngineIniPath);
+	}
+
+	// 3. DefaultEditor.ini fallback (editor-only)
+	if (Value.IsEmpty() && GConfig)
+	{
+		const FString ProjectEditorIniPath = FPaths::ProjectConfigDir() / TEXT("DefaultEditor.ini");
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingAuthToken"), Value, ProjectEditorIniPath);
+	}
+
+	return Value;
+}
+
 void UEGIKBlueprintFunctionLibrary::GetEnvironmentVariable(FString Key, FString& Value)
 {
 	Value = FPlatformMisc::GetEnvironmentVariable(*Key);

@@ -16,10 +16,10 @@ struct FEGIK_MatchmakingRequest
 	FString TicketId;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-	FString MatchmakingURL;
+	FString MatchmakingURL = TEXT("");
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-	FString AuthToken;
+	FString AuthToken = TEXT("");
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGetMatchmakingTicketResponse, const FEGIK_MatchmakingResponse&, Response, const FEGIK_ErrorStruct&, Error);

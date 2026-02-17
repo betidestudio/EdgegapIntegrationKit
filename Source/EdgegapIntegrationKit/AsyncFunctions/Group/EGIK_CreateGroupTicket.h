@@ -27,6 +27,9 @@ struct FEGIK_MemberTicket
 	FString PlayerIp;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Group")
+	FString Profile;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Group")
 	FString Attributes;
 };
 
@@ -58,7 +61,7 @@ class EDGEGAPINTEGRATIONKIT_API UEGIK_CreateGroupTicket : public UEGIK_AsyncRequ
 
 public:
 
-	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"), Category = "Edgegap Integration Kit | Group")
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", DeprecatedFunction, DeprecationMessage = "Group Tickets is a legacy server-to-server flow. Prefer Group Up endpoints under Edgegap Integration Kit | Group Up for game client integrations."), Category = "Edgegap Integration Kit | Group")
 	static UEGIK_CreateGroupTicket* CreateGroupTicket(const FEGIK_CreateGroupTicketRequest& Request);
 
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Group")

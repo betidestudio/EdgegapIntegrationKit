@@ -13,7 +13,9 @@ UEGIK_GetBackFillTicketInformation* UEGIK_GetBackFillTicketInformation::GetBackF
 
 FString UEGIK_GetBackFillTicketInformation::GetEndpointURL() const
 {
-	FString BaseURL = Var_MatchmakingURL;
+	FString BaseURL = Var_MatchmakingURL.IsEmpty()
+		? UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
+		: Var_MatchmakingURL;
 	if (BaseURL.EndsWith(TEXT("/")))
 	{
 		BaseURL = BaseURL.LeftChop(1);
@@ -28,7 +30,9 @@ EEGIK_HttpVerb UEGIK_GetBackFillTicketInformation::GetHTTPVerb() const
 
 FString UEGIK_GetBackFillTicketInformation::GetAuthorizationHeader() const
 {
-	return Var_AuthToken;
+	return Var_AuthToken.IsEmpty()
+		? UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
+		: Var_AuthToken;
 }
 
 void UEGIK_GetBackFillTicketInformation::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)

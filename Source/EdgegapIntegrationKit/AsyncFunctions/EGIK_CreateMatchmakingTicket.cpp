@@ -11,7 +11,9 @@ UEGIK_CreateMatchmakingTicket* UEGIK_CreateMatchmakingTicket::CreateMatchmakingT
 
 FString UEGIK_CreateMatchmakingTicket::GetEndpointURL() const
 {
-	FString BaseURL = Var_MatchmakingStruct.MatchmakingURL;
+	FString BaseURL = Var_MatchmakingStruct.MatchmakingURL.IsEmpty()
+		? UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
+		: Var_MatchmakingStruct.MatchmakingURL;
 	if (BaseURL.EndsWith(TEXT("/")))
 	{
 		BaseURL = BaseURL.LeftChop(1);
@@ -26,7 +28,9 @@ EEGIK_HttpVerb UEGIK_CreateMatchmakingTicket::GetHTTPVerb() const
 
 FString UEGIK_CreateMatchmakingTicket::GetAuthorizationHeader() const
 {
-	return Var_MatchmakingStruct.AuthToken;
+	return Var_MatchmakingStruct.AuthToken.IsEmpty()
+		? UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
+		: Var_MatchmakingStruct.AuthToken;
 }
 
 TMap<FString, FString> UEGIK_CreateMatchmakingTicket::GetAdditionalHeaders() const
@@ -75,6 +79,11 @@ void UEGIK_CreateMatchmakingTicket::ProcessResponse(int32 HttpStatusCode, TShare
 	Response.TicketId = JsonObject->GetStringField(TEXT("id"));
 	Response.GameProfile = JsonObject->GetStringField(TEXT("profile"));
 	FDateTime::ParseIso8601(*JsonObject->GetStringField(TEXT("created_at")), Response.CreatedAt);
+	JsonObject->TryGetStringField(TEXT("group_id"), Response.GroupId);
+	JsonObject->TryGetStringField(TEXT("team_id"), Response.TeamId);
+	JsonObject->TryGetStringField(TEXT("match_id"), Response.MatchId);
+	JsonObject->TryGetStringField(TEXT("status"), Response.Status);
+	JsonObject->TryGetStringField(TEXT("player_ip"), Response.IP);
 
 	const TSharedPtr<FJsonObject>* AssignmentObject;
 	if (JsonObject->HasTypedField<EJson::Object>(TEXT("assignment")))

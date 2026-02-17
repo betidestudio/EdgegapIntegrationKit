@@ -11,7 +11,9 @@ UEGIK_DeleteMatchmakingTicket* UEGIK_DeleteMatchmakingTicket::DeleteMatchmakingT
 
 FString UEGIK_DeleteMatchmakingTicket::GetEndpointURL() const
 {
-	FString BaseURL = Var_Request.MatchmakingURL;
+	FString BaseURL = Var_Request.MatchmakingURL.IsEmpty()
+		? UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
+		: Var_Request.MatchmakingURL;
 	if (BaseURL.EndsWith(TEXT("/")))
 	{
 		BaseURL = BaseURL.LeftChop(1);
@@ -26,7 +28,9 @@ EEGIK_HttpVerb UEGIK_DeleteMatchmakingTicket::GetHTTPVerb() const
 
 FString UEGIK_DeleteMatchmakingTicket::GetAuthorizationHeader() const
 {
-	return Var_Request.AuthToken;
+	return Var_Request.AuthToken.IsEmpty()
+		? UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
+		: Var_Request.AuthToken;
 }
 
 void UEGIK_DeleteMatchmakingTicket::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)

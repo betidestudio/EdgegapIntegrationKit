@@ -11,7 +11,9 @@ UEGIK_GetMatchmakingTicket* UEGIK_GetMatchmakingTicket::GetMatchmakingTicket(FEG
 
 FString UEGIK_GetMatchmakingTicket::GetEndpointURL() const
 {
-	FString BaseURL = Var_MatchmakingRequest.MatchmakingURL;
+	FString BaseURL = Var_MatchmakingRequest.MatchmakingURL.IsEmpty()
+		? UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
+		: Var_MatchmakingRequest.MatchmakingURL;
 	if (BaseURL.EndsWith(TEXT("/")))
 	{
 		BaseURL = BaseURL.LeftChop(1);
@@ -26,7 +28,9 @@ EEGIK_HttpVerb UEGIK_GetMatchmakingTicket::GetHTTPVerb() const
 
 FString UEGIK_GetMatchmakingTicket::GetAuthorizationHeader() const
 {
-	return Var_MatchmakingRequest.AuthToken;
+	return Var_MatchmakingRequest.AuthToken.IsEmpty()
+		? UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
+		: Var_MatchmakingRequest.AuthToken;
 }
 
 void UEGIK_GetMatchmakingTicket::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)
@@ -62,6 +66,14 @@ void UEGIK_GetMatchmakingTicket::ProcessResponse(int32 HttpStatusCode, TSharedPt
 	if (JsonObject->HasField(TEXT("group_id")))
 	{
 		Response.GroupId = JsonObject->GetStringField(TEXT("group_id"));
+	}
+	if (JsonObject->HasField(TEXT("team_id")))
+	{
+		Response.TeamId = JsonObject->GetStringField(TEXT("team_id"));
+	}
+	if (JsonObject->HasField(TEXT("match_id")))
+	{
+		Response.MatchId = JsonObject->GetStringField(TEXT("match_id"));
 	}
 	if (JsonObject->HasField(TEXT("player_ip")))
 	{

@@ -48,7 +48,7 @@ class EDGEGAPINTEGRATIONKIT_API UEGIK_GetBackFillTicketInformation : public UEGI
 
 public:
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"), Category = "Edgegap Integration Kit | Backfill")
-	static UEGIK_GetBackFillTicketInformation* GetBackFillTicketInformation(const FString& backfillId, const FString& MatchmakingURL, const FString& AuthToken);
+	static UEGIK_GetBackFillTicketInformation* GetBackFillTicketInformation(const FString& backfillId, const FString& MatchmakingURL = TEXT(""), const FString& AuthToken = TEXT(""));
 
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Backfill")
 	FGetBackFillTicketInformationResponse OnSuccess;

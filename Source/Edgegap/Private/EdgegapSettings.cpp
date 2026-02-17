@@ -27,6 +27,8 @@ UEdgegapSettings::UEdgegapSettings()
 		// Client-safe keys: read from DefaultEngine.ini (ships with builds)
 		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserURL"), ServerBrowserURL, ProjectEngineIniPath);
 		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserClientToken"), ServerBrowserClientToken, ProjectEngineIniPath);
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingURL"), MatchmakingURL, ProjectEngineIniPath);
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingAuthToken"), MatchmakingAuthToken, ProjectEngineIniPath);
 	}
 }
 
@@ -72,6 +74,16 @@ void UEdgegapSettings::PostEditChangeProperty(struct FPropertyChangedEvent& Prop
 	if (PropertyName == TEXT("ServerBrowserClientToken"))
 	{
 		GConfig->SetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserClientToken"), *ServerBrowserClientToken, ProjectEngineIniPath);
+		GConfig->Flush(false, ProjectEngineIniPath);
+	}
+	if (PropertyName == TEXT("MatchmakingURL"))
+	{
+		GConfig->SetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingURL"), *MatchmakingURL, ProjectEngineIniPath);
+		GConfig->Flush(false, ProjectEngineIniPath);
+	}
+	if (PropertyName == TEXT("MatchmakingAuthToken"))
+	{
+		GConfig->SetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingAuthToken"), *MatchmakingAuthToken, ProjectEngineIniPath);
 		GConfig->Flush(false, ProjectEngineIniPath);
 	}
 

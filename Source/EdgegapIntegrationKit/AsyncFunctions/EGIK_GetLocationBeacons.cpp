@@ -12,7 +12,14 @@ UEGIK_GetLocationBeacons* UEGIK_GetLocationBeacons::GetLocationBeacons(FString M
 
 FString UEGIK_GetLocationBeacons::GetEndpointURL() const
 {
-	return Var_MatchmakingUrl + "/locations/beacons";
+	FString BaseURL = Var_MatchmakingUrl.IsEmpty()
+		? UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
+		: Var_MatchmakingUrl;
+	if (BaseURL.EndsWith(TEXT("/")))
+	{
+		BaseURL = BaseURL.LeftChop(1);
+	}
+	return BaseURL + TEXT("/locations/beacons");
 }
 
 EEGIK_HttpVerb UEGIK_GetLocationBeacons::GetHTTPVerb() const
@@ -22,7 +29,9 @@ EEGIK_HttpVerb UEGIK_GetLocationBeacons::GetHTTPVerb() const
 
 FString UEGIK_GetLocationBeacons::GetAuthorizationHeader() const
 {
-	return Var_AuthToken;
+	return Var_AuthToken.IsEmpty()
+		? UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
+		: Var_AuthToken;
 }
 
 void UEGIK_GetLocationBeacons::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)

@@ -29,10 +29,10 @@ struct FEGIK_CreateBackFillRequest
 	FString AssignmentDetails;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-	FString MatchmakingURL;
+	FString MatchmakingURL = TEXT("");
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-	FString AuthToken;
+	FString AuthToken = TEXT("");
 };
 
 USTRUCT(BlueprintType)

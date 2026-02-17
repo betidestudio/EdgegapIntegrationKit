@@ -20,7 +20,7 @@ class EDGEGAPINTEGRATIONKIT_API UEGIK_DeleteBackFillTicket : public UEGIK_AsyncR
 
 public:
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"), Category = "Edgegap Integration Kit | Backfill")
-	static UEGIK_DeleteBackFillTicket* DeleteBackFillTicket(const FString& backfillId, const FString& MatchmakingURL, const FString& AuthToken);
+	static UEGIK_DeleteBackFillTicket* DeleteBackFillTicket(const FString& backfillId, const FString& MatchmakingURL = TEXT(""), const FString& AuthToken = TEXT(""));
 
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Backfill")
 	FDeleteBackFillTicketResponse OnSuccess;

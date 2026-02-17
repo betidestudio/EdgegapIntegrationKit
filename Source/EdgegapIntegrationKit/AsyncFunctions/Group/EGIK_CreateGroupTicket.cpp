@@ -11,7 +11,14 @@ UEGIK_CreateGroupTicket* UEGIK_CreateGroupTicket::CreateGroupTicket(const FEGIK_
 
 FString UEGIK_CreateGroupTicket::GetEndpointURL() const
 {
-	return Var_Request.MatchmakerUrl + "/group-tickets";
+	FString BaseURL = Var_Request.MatchmakerUrl.IsEmpty()
+		? UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
+		: Var_Request.MatchmakerUrl;
+	if (BaseURL.EndsWith(TEXT("/")))
+	{
+		BaseURL = BaseURL.LeftChop(1);
+	}
+	return BaseURL + TEXT("/group-tickets");
 }
 
 EEGIK_HttpVerb UEGIK_CreateGroupTicket::GetHTTPVerb() const
@@ -21,13 +28,14 @@ EEGIK_HttpVerb UEGIK_CreateGroupTicket::GetHTTPVerb() const
 
 FString UEGIK_CreateGroupTicket::GetAuthorizationHeader() const
 {
-	return Var_Request.AuthToken;
+	return Var_Request.AuthToken.IsEmpty()
+		? UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
+		: Var_Request.AuthToken;
 }
 
 TSharedPtr<FJsonObject> UEGIK_CreateGroupTicket::BuildRequestBody() const
 {
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
-	JsonObject->SetStringField("profile_id", Var_Request.ProfileId);
 
 	TArray<TSharedPtr<FJsonValue>> MembersArray;
 	for (const FEGIK_MemberTicket& Member : Var_Request.Members)
@@ -37,7 +45,11 @@ TSharedPtr<FJsonObject> UEGIK_CreateGroupTicket::BuildRequestBody() const
 		{
 			MemberObject->SetStringField("player_ip", Member.PlayerIp);
 		}
-		MemberObject->SetStringField("profile", Var_Request.ProfileId);
+		const FString EffectiveProfile = Member.Profile.IsEmpty() ? Var_Request.ProfileId : Member.Profile;
+		if (!EffectiveProfile.IsEmpty())
+		{
+			MemberObject->SetStringField(TEXT("profile"), EffectiveProfile);
+		}
 		TSharedPtr<FJsonObject> AttributesJsonObject;
 		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Member.Attributes);
 		if (FJsonSerializer::Deserialize(Reader, AttributesJsonObject) && AttributesJsonObject.IsValid())
@@ -80,7 +92,15 @@ void UEGIK_CreateGroupTicket::ProcessResponse(int32 HttpStatusCode, TSharedPtr<F
 					}
 					if(TicketObject->HasField(TEXT("assignment")))
 					{
-						Response.Assignment = TicketObject->GetStringField(TEXT("assignment"));
+						const TSharedPtr<FJsonObject>* AssignmentObject;
+						if (TicketObject->TryGetObjectField(TEXT("assignment"), AssignmentObject))
+						{
+							Response.Assignment = FEGIK_AssignmentStruct(*AssignmentObject);
+						}
+						else
+						{
+							Response.Assignment = FEGIK_AssignmentStruct(TEXT("null"));
+						}
 					}
 					if(TicketObject->HasField(TEXT("player_ip")))
 					{
@@ -94,10 +114,18 @@ void UEGIK_CreateGroupTicket::ProcessResponse(int32 HttpStatusCode, TSharedPtr<F
 					{
 						Response.GroupId = TicketObject->GetStringField(TEXT("group_id"));
 					}
+					if (TicketObject->HasField(TEXT("team_id")))
+					{
+						Response.TeamId = TicketObject->GetStringField(TEXT("team_id"));
+					}
+					if (TicketObject->HasField(TEXT("match_id")))
+					{
+						Response.MatchId = TicketObject->GetStringField(TEXT("match_id"));
+					}
 					if(TicketObject->HasField(TEXT("created_at")))
 					{
 						FDateTime CreatedAt;
-						FDateTime::Parse(TicketObject->GetStringField(TEXT("created_at")), CreatedAt);
+						FDateTime::ParseIso8601(*TicketObject->GetStringField(TEXT("created_at")), CreatedAt);
 						Response.CreatedAt = CreatedAt;
 					}
 					ResponseArray.Add(Response);

@@ -49,7 +49,7 @@ class EDGEGAPINTEGRATIONKIT_API UEGIK_GetLocationBeacons : public UEGIK_AsyncReq
 public:
 
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"), Category = "Edgegap Integration Kit | Location")
-	static UEGIK_GetLocationBeacons* GetLocationBeacons(FString MatchmakingUrl, FString AuthToken);
+	static UEGIK_GetLocationBeacons* GetLocationBeacons(FString MatchmakingUrl = TEXT(""), FString AuthToken = TEXT(""));
 
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Location")
 	FGetLocationBeaconsResponse OnSuccess;

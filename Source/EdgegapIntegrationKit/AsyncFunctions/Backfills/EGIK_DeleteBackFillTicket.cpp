@@ -13,7 +13,9 @@ UEGIK_DeleteBackFillTicket* UEGIK_DeleteBackFillTicket::DeleteBackFillTicket(con
 
 FString UEGIK_DeleteBackFillTicket::GetEndpointURL() const
 {
-	FString BaseURL = Var_MatchmakingURL;
+	FString BaseURL = Var_MatchmakingURL.IsEmpty()
+		? UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
+		: Var_MatchmakingURL;
 	if (BaseURL.EndsWith(TEXT("/")))
 	{
 		BaseURL = BaseURL.LeftChop(1);
@@ -28,7 +30,9 @@ EEGIK_HttpVerb UEGIK_DeleteBackFillTicket::GetHTTPVerb() const
 
 FString UEGIK_DeleteBackFillTicket::GetAuthorizationHeader() const
 {
-	return Var_AuthToken;
+	return Var_AuthToken.IsEmpty()
+		? UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
+		: Var_AuthToken;
 }
 
 void UEGIK_DeleteBackFillTicket::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)

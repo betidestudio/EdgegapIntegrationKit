@@ -913,6 +913,37 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	)
 		];
 
+	// --- Matchmaking Key Warnings
+	IDetailCategoryBuilder& MatchmakingCategory = DetailBuilder.EditCategory("Matchmaking");
+
+	MatchmakingCategory.AddCustomRow(FText::FromString("MMKeyInfo"))
+	[
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(4, 4)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0, 0, 4, 0)
+			[
+				SNew(SImage)
+				.Image(FAppStyle::GetBrush("Icons.InfoWithColor"))
+			]
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("MMTokenInfo", "Matchmaker URL and Auth Token are stored in DefaultEngine.ini and may be included in builds. For runtime overrides, prefer EDGEGAP_MM_URL and EDGEGAP_MM_AUTH_TOKEN environment variables."))
+				.AutoWrapText(true)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			]
+		]
+	];
+
 	// --- Server Browser Key Warnings
 	IDetailCategoryBuilder& ServerBrowserCategory = DetailBuilder.EditCategory("Server Browser");
 

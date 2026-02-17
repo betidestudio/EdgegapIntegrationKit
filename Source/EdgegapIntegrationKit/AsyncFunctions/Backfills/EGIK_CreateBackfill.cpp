@@ -11,7 +11,9 @@ UEGIK_CreateBackfill* UEGIK_CreateBackfill::CreateBackFillRequest(const FEGIK_Cr
 
 FString UEGIK_CreateBackfill::GetEndpointURL() const
 {
-	FString BaseURL = Var_Request.MatchmakingURL;
+	FString BaseURL = Var_Request.MatchmakingURL.IsEmpty()
+		? UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
+		: Var_Request.MatchmakingURL;
 	if (BaseURL.EndsWith(TEXT("/")))
 	{
 		BaseURL = BaseURL.LeftChop(1);
@@ -26,7 +28,9 @@ EEGIK_HttpVerb UEGIK_CreateBackfill::GetHTTPVerb() const
 
 FString UEGIK_CreateBackfill::GetAuthorizationHeader() const
 {
-	return Var_Request.AuthToken;
+	return Var_Request.AuthToken.IsEmpty()
+		? UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
+		: Var_Request.AuthToken;
 }
 
 TSharedPtr<FJsonObject> UEGIK_CreateBackfill::BuildRequestBody() const

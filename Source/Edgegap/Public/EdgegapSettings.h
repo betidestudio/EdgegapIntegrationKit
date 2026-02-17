@@ -190,6 +190,15 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Server Browser", DisplayName = "Client Token")
 	FString ServerBrowserClientToken;
 
+	// Matchmaker URL (unique per matchmaker config)
+	UPROPERTY(Config, EditAnywhere, Category = "Matchmaking", DisplayName = "Matchmaker URL")
+	FString MatchmakingURL;
+
+	// Matchmaker auth token used by matchmaking/group/backfill APIs.
+	// Leave empty if you provide tokens dynamically at runtime.
+	UPROPERTY(Config, EditAnywhere, Category = "Matchmaking", DisplayName = "Auth Token")
+	FString MatchmakingAuthToken;
+
 	UPROPERTY(Config)
 	FString Tag;
 
@@ -200,4 +209,3 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Application Info")
 	bool bIsTokenVerified = true;
 };
-

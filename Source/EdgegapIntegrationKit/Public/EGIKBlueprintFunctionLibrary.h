@@ -214,10 +214,10 @@ struct FEGIK_CreateMatchmakingStruct
 	FString PlayerIp = "";
 
     UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-    FString MatchmakingURL;
+    FString MatchmakingURL = "";
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-	FString AuthToken;
+	FString AuthToken = "";
 };
 
 USTRUCT(BlueprintType)
@@ -236,6 +236,9 @@ struct FEGIK_MatchmakingResponse
 	
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
 	FString TeamId;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
+	FString MatchId;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
 	FString ExpansionStage;
@@ -261,6 +264,7 @@ struct FEGIK_MatchmakingResponse
 		GameProfile = "";
 		GroupId = "";
 		TeamId = "";
+		MatchId = "";
 		ExpansionStage = "";
 		IP = "";
 		Attributes = "";
@@ -285,6 +289,10 @@ struct FEGIK_MatchmakingResponse
 			if(JsonObject->HasField(TEXT("team_id")))
 			{
 				TeamId = JsonObject->GetStringField(TEXT("team_id"));
+			}
+			if(JsonObject->HasField(TEXT("match_id")))
+			{
+				MatchId = JsonObject->GetStringField(TEXT("match_id"));
 			}
 			if(JsonObject->HasField(TEXT("expansion_stage")))
 			{
@@ -974,6 +982,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit | Server Browser")
 	static FString GetServerBrowserClientToken();
+
+	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit | Matchmaking")
+	static FString GetMatchmakingURL();
+
+	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit | Matchmaking")
+	static FString GetMatchmakingAuthToken();
 
 	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit")
 	static void GetEnvironmentVariable(FString Key, FString& Value);
