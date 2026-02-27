@@ -1,0 +1,93 @@
+---
+title: Group Up
+description: Recommended client-safe group matchmaking flow for parties
+---
+
+<Callout type="info">
+Edgegap Matchmaker is in active development with frequent updates. For the latest configuration examples, group lifecycle details, and API changes, see the [official Edgegap Matchmaking docs](https://docs.edgegap.com/learn/matchmaking) and [Group Up guide](https://docs.edgegap.com/learn/matchmaker-in-depth#group-up).
+</Callout>
+
+## Why Group Up
+
+Group Up ensures friends join the same team and server. It replaces the legacy `CreateGroupTicket` with a cleaner party/member readiness model.
+
+- Leader creates a group, shares the `GroupId` with friends (via lobby, Discord, etc.)
+- Members join using the `GroupId`
+- Once everyone marks ready, matchmaking starts automatically
+- All members receive the same server assignment
+
+## Step 1 — Leader Creates Group
+
+1. Call `CreateGroup` with `Profile`, `Attributes` (beacon latencies, game preferences), `PlayerIp`, and `bIsReady = false`.
+2. From `OnSuccess`, save `GroupId` and `MemberId` from the response.
+3. Share the `GroupId` with party members through your lobby system.
+
+![Leader creates group and gets GroupId](/screenshots/matchmaking-groupup.svg)
+
+## Step 2 — Members Join & Ready Up
+
+1. Each member calls `CreateGroupMember` with the `GroupId`, their own `Profile`, `Attributes`, `PlayerIp`, and `bIsReady = false`.
+2. When ready, each player (including leader) calls `UpdateGroupMember` with `bIsReady = true`.
+3. Matchmaking starts automatically once **all members are ready**.
+
+<Callout type="warn">
+**Once matchmaking starts, no one can join the group.** If you need to add someone, the leader must `DeleteGroup`, create a new one, and have everyone rejoin.
+</Callout>
+
+<Callout type="warn">
+Group size is validated against your profile's `max_team_size`. New members will be rejected if the group is already full.
+</Callout>
+
+## Step 3 — Poll for Assignment & Connect
+
+1. All members poll `GetGroupMember` with their `GroupId` and `MemberId` every 3-5 seconds.
+2. Check `Assignment.IsNullOrEmpty` — when `false`, the server is ready.
+3. Break the `AssignmentStruct` for `FQDN` and `GamePort.External` to build the connect address.
+4. Connect immediately — `open {FQDN}:{ExternalPort}`.
+
+<Callout type="info">
+**Save GroupId and MemberId persistently** (e.g. SaveGame). If the game crashes mid-queue, players can resume polling without losing their spot.
+</Callout>
+
+## Cancel Queue
+
+- **Leader** calls `DeleteGroup` — cancels matchmaking for everyone, all members get `CANCELLED` status.
+- **Member** calls `DeleteGroupMember` — leaves the group. If matchmaking already started, this cancels the whole group.
+- After `HOST_ASSIGNED`, the group **can't be deleted** (`409 Conflict`). It's cleaned up automatically.
+
+## C++ Example (Leader)
+
+```cpp
+#include "GroupUp/EGIK_CreateGroup.h"
+
+FEGIK_CreateGroupRequest Req;
+Req.Profile = TEXT("ranked-2v2");
+Req.Attributes = TEXT("{\"beacons\":{\"Montreal\":15.2}}");
+Req.bIsReady = false;
+// Req.MatchmakingURL/AuthToken optional; leave empty to use plugin settings.
+
+auto* Node = UEGIK_CreateGroup::CreateGroup(Req);
+Node->OnSuccess.AddDynamic(this, &UMySubsystem::OnGroupCreated);
+Node->Activate();
+```
+
+## C++ Example (Ready Toggle)
+
+```cpp
+#include "GroupUp/EGIK_UpdateGroupMember.h"
+
+FEGIK_UpdateGroupMemberRequest Req;
+Req.GroupId = GroupId;
+Req.MemberId = MemberId;
+Req.bIsReady = true;
+
+auto* Node = UEGIK_UpdateGroupMember::UpdateGroupMember(Req);
+Node->OnSuccess.AddDynamic(this, &UMySubsystem::OnMemberUpdated);
+Node->Activate();
+```
+
+## Notes
+
+- URL/token fields are optional per request; empty means plugin settings/environment fallback.
+- The same [ticket status flow](/matchmaking/tickets#ticket-status-flow) applies: SEARCHING → TEAM_FOUND → MATCH_FOUND → HOST_ASSIGNED.
+- For backfilling (replacing leavers mid-match), see the [Backfill nodes](/matchmaking/tickets#legacy-group-tickets) — this is a server-side operation using `CreateBackfill`.
