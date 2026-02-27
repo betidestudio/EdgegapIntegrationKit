@@ -6,6 +6,19 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Runtime/Core/Public/CoreGlobals.h"
 
+// Lazy-initialized normalized paths to avoid non-normalized path warnings in UE 5.6+
+static const FString& GetProjectEngineIniPath()
+{
+	static FString Path = FConfigCacheIni::NormalizeConfigIniPath(FPaths::ProjectConfigDir() / TEXT("DefaultEngine.ini"));
+	return Path;
+}
+
+static const FString& GetProjectEditorIniPath()
+{
+	static FString Path = FConfigCacheIni::NormalizeConfigIniPath(FPaths::ProjectConfigDir() / TEXT("DefaultEditor.ini"));
+	return Path;
+}
+
 FString UEGIKBlueprintFunctionLibrary::Conv_EGIK_ErrorStructToString(FEGIK_ErrorStruct ErrorStruct)
 {
 	return FString::Printf(TEXT("Error Code: %d, Error Message: %s"), ErrorStruct.ErrorCode, *ErrorStruct.ErrorMessage);
@@ -31,10 +44,9 @@ FString UEGIKBlueprintFunctionLibrary::GetAuthorizationKey()
 	}
 
 	// 2. DefaultEditor.ini (editor-only, never ships with builds)
-	FString ProjectEditorIniPath = FPaths::ProjectConfigDir() / TEXT("DefaultEditor.ini");
 	if (GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("AuthorizationKey"), AuthorizationKey, ProjectEditorIniPath);
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("AuthorizationKey"), AuthorizationKey, GetProjectEditorIniPath());
 	}
 
 	return AuthorizationKey;
@@ -50,10 +62,9 @@ FString UEGIKBlueprintFunctionLibrary::GetServerBrowserURL()
 	}
 
 	// 2. DefaultEngine.ini (client-safe, ships with builds)
-	FString ProjectEngineIniPath = FPaths::ProjectConfigDir() / TEXT("DefaultEngine.ini");
 	if (GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserURL"), Value, ProjectEngineIniPath);
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserURL"), Value, GetProjectEngineIniPath());
 	}
 	return Value;
 }
@@ -68,10 +79,9 @@ FString UEGIKBlueprintFunctionLibrary::GetServerBrowserServerToken()
 	}
 
 	// 2. DefaultEditor.ini (editor-only, never ships with builds)
-	FString ProjectEditorIniPath = FPaths::ProjectConfigDir() / TEXT("DefaultEditor.ini");
 	if (GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserServerToken"), Value, ProjectEditorIniPath);
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserServerToken"), Value, GetProjectEditorIniPath());
 	}
 
 	return Value;
@@ -87,10 +97,9 @@ FString UEGIKBlueprintFunctionLibrary::GetServerBrowserClientToken()
 	}
 
 	// 2. DefaultEngine.ini (client-safe, ships with builds)
-	FString ProjectEngineIniPath = FPaths::ProjectConfigDir() / TEXT("DefaultEngine.ini");
 	if (GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserClientToken"), Value, ProjectEngineIniPath);
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserClientToken"), Value, GetProjectEngineIniPath());
 	}
 	return Value;
 }
@@ -105,10 +114,9 @@ FString UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
 	}
 
 	// 2. DefaultEngine.ini (client-safe, ships with builds)
-	const FString ProjectEngineIniPath = FPaths::ProjectConfigDir() / TEXT("DefaultEngine.ini");
 	if (GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingURL"), Value, ProjectEngineIniPath);
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingURL"), Value, GetProjectEngineIniPath());
 	}
 
 	return Value;
@@ -130,17 +138,15 @@ FString UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
 	}
 
 	// 2. DefaultEngine.ini (ships with builds)
-	const FString ProjectEngineIniPath = FPaths::ProjectConfigDir() / TEXT("DefaultEngine.ini");
 	if (GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingAuthToken"), Value, ProjectEngineIniPath);
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingAuthToken"), Value, GetProjectEngineIniPath());
 	}
 
 	// 3. DefaultEditor.ini fallback (editor-only)
 	if (Value.IsEmpty() && GConfig)
 	{
-		const FString ProjectEditorIniPath = FPaths::ProjectConfigDir() / TEXT("DefaultEditor.ini");
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingAuthToken"), Value, ProjectEditorIniPath);
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingAuthToken"), Value, GetProjectEditorIniPath());
 	}
 
 	return Value;
