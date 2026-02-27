@@ -19,7 +19,7 @@ Edgegap Matchmaker is in active development with frequent updates. For the lates
 4. Call `CreateMatchmakingTicket`.
 5. On success, save the `TicketId` from the response — you need it for polling and cancellation.
 
-![Build attributes JSON and create matchmaking ticket](/screenshots/matchmaking-tickets-create.png)
+{/* ![Build attributes JSON and create matchmaking ticket](/screenshots/matchmaking-tickets-create.png) */}
 
 ### Attributes JSON Format
 
@@ -45,7 +45,7 @@ After creating a ticket, poll `GetMatchmakingTicket` on a timer until the assign
 4. When assignment arrives, read `FQDN` and `GamePort.External` from the `AssignmentStruct`.
 5. Connect using `open {FQDN}:{ExternalPort}` via Execute Console Command.
 
-![Poll ticket, check assignment, connect using FQDN and Port](/screenshots/matchmaking-tickets-poll.png)
+{/* ![Poll ticket, check assignment, connect using FQDN and Port](/screenshots/matchmaking-tickets-poll.png) */}
 
 ### Ticket Status Flow
 
@@ -67,7 +67,7 @@ Your ticket progresses through these statuses:
 
 Call `DeleteMatchmakingTicket` with the `TicketId` to cancel. Returns `409 Conflict` if the match is already found and a deployment is starting — at that point you can't cancel.
 
-![Delete matchmaking ticket to cancel queue](/screenshots/matchmaking-tickets-cancel.png)
+{/* ![Delete matchmaking ticket to cancel queue](/screenshots/matchmaking-tickets-cancel.png) */}
 
 ## Error Handling
 
