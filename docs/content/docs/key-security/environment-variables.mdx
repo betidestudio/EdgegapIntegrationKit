@@ -1,4 +1,38 @@
 ---
 title: Environment Variables
-description: Configure API keys via environment variables for deployed servers
+description: Runtime env vars supported by EGIK for tokens, URLs, and match context
 ---
+
+## Priority Rule
+
+Runtime environment variables are preferred over config values when supported.
+
+## Supported Variables
+
+| Variable | Used By | Purpose |
+|---|---|---|
+| `EDGEGAP_API_KEY` | Core deployment APIs | Authorization key override |
+| `EDGEGAP_SB_URL` | Server Browser | Server Browser base URL |
+| `EDGEGAP_SB_SERVER_TOKEN` | Server Browser server calls | Server token override |
+| `EDGEGAP_SB_CLIENT_TOKEN` | Server Browser client calls | Client token override |
+| `EDGEGAP_MM_URL` | Matchmaking / Group Up / Backfill | Matchmaker base URL |
+| `EDGEGAP_MM_AUTH_TOKEN` | Matchmaking / Group Up / Backfill | Matchmaker token override |
+| `EDGEGAP_MATCHMAKER_AUTH_TOKEN` | Matchmaking fallback | Alternate matchmaker token name |
+| `MM_GROUP_MAPPING` | Server runtime helpers | Group to player mapping JSON |
+| `MM_EXPANSION_STAGE` | Server runtime helpers | Expansion stage |
+| `MM_MATCH_PROFILE` | Server runtime helpers | Active match profile |
+| `ARBITRIUM_REQUEST_ID` | Server shutdown subsystem | Current deployment request id |
+| `ARBITRIUM_DELETE_URL` | Server shutdown subsystem | Self-stop endpoint |
+| `ARBITRIUM_DELETE_TOKEN` | Server shutdown subsystem | Self-stop auth token |
+
+{/* ![Environment variable matrix](/screenshots/security-env.png) */}
+
+## Unreal C++ Read Example
+
+```cpp
+#include "EGIKBlueprintFunctionLibrary.h"
+
+FString Value;
+UEGIKBlueprintFunctionLibrary::GetEnvironmentVariable(TEXT("EDGEGAP_MM_URL"), Value);
+UE_LOG(LogTemp, Log, TEXT("EDGEGAP_MM_URL=%s"), *Value);
+```

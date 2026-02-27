@@ -1,4 +1,36 @@
 ---
 title: Manage Deployments
-description: Get status, stop, and manage active deployments
+description: Poll status, update joinability, fetch logs/metrics, and stop deployments
 ---
+
+## Core Nodes
+
+- `GetDeploymentStatusAndInfo`
+- `UpdateDeploymentProperties`
+- `GetContainerLogs`
+- `GetDeploymentMetrics`
+- `DeleteDeployment` / `SelfStopDeployment`
+- `BulkStopDeployments`
+
+{/* ![Deployment management node map](/screenshots/deployment-manage.png) */}
+
+## Typical Runtime Loop
+
+1. Poll status by `RequestId`.
+2. When ready, set `bIsJoinableBySession=true` if needed.
+3. Collect logs/metrics on failures.
+4. Stop deployment when match ends.
+
+## C++ Poll Example
+
+```cpp
+#include "Deployments/EGIK_DeploymentStatusAndInfo.h"
+
+auto* Node = UEGIK_DeploymentStatusAndInfo::GetDeploymentStatusAndInfo(RequestId);
+Node->OnSuccess.AddDynamic(this, &UMySubsystem::OnDeploymentStatus);
+Node->Activate();
+```
+
+## Stop Safely
+
+Use `SelfStopDeployment` inside dedicated server shutdown flow when running on Edgegap runtime.

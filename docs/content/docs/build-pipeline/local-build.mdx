@@ -1,4 +1,24 @@
 ---
 title: Local Build
-description: Build with local Linux cross-compilation and Docker containerization
+description: Build server locally, then package container for Edgegap
 ---
+
+## When To Use
+
+Use Local Build when your CI/host already has Unreal build toolchain ready.
+
+{/* ![Local build workflow](/screenshots/build-local.png) */}
+
+## Steps
+
+1. Set plugin `Build Mode` to `Local Build`.
+2. Build dedicated server target.
+3. Build/push container image.
+4. Create/update app version in Edgegap.
+
+## Checklist
+
+- Server target exists.
+- Linux server build succeeds.
+- Container entrypoint starts server process.
+- Exposed ports match plugin/app config.

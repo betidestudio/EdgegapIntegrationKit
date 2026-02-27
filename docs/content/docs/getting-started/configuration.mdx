@@ -1,4 +1,45 @@
 ---
 title: Configuration
-description: Configure API credentials, Docker, and application settings
+description: Configure tokens and URLs once, then override per call only when needed
 ---
+
+## Goal
+
+Set defaults in plugin settings so Blueprint/C++ calls can omit URL/token fields.
+
+## Project Settings Path
+
+- `Project Settings > Edgegap Plugin`
+
+{/* ![Project Settings Edgegap Plugin section](/screenshots/getting-started-configuration.png) */}
+
+## Required Fields by Feature
+
+| Feature | Field | Notes |
+|---|---|---|
+| Core API | `Authorization Key` | Used by deployment APIs. |
+| Matchmaking | `Matchmaker URL` | Used when matchmaking URL is empty in request structs. |
+| Matchmaking | `Auth Token` | Used when matchmaking auth token is empty in request structs. |
+| Server Browser | `Server Browser URL` | Shared endpoint for SB client/server calls. |
+| Server Browser (server) | `Server Token` | For register/heartbeat/slot management. |
+| Server Browser (client) | `Client Token` | For list/reserve calls from clients. |
+
+## Override Rule
+
+- If request struct has URL/token, that value is used.
+- If empty, plugin settings/environment value is used.
+
+## C++ Runtime Check
+
+```cpp
+#include "EGIKBlueprintFunctionLibrary.h"
+
+const FString MmUrl = UEGIKBlueprintFunctionLibrary::GetMatchmakingURL();
+const FString MmToken = UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken();
+UE_LOG(LogTemp, Log, TEXT("MM URL: %s"), *MmUrl);
+UE_LOG(LogTemp, Log, TEXT("MM Token set: %s"), MmToken.IsEmpty() ? TEXT("no") : TEXT("yes"));
+```
+
+## Security Note
+
+Use environment variables for production servers instead of hardcoding tokens in assets.
