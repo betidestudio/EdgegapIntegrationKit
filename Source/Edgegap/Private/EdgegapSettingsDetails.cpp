@@ -650,7 +650,7 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 		.Padding(4, 2)
 		[
 			SNew(STextBlock)
-			.Text(LOCTEXT("AuthKeyWarning", "This key is stored in DefaultEditor.ini and will not be included in builds. For deployed servers, set the EDGEGAP_API_KEY environment variable."))
+			.Text(LOCTEXT("AuthKeyWarning", "This key is stored in the Editor config hierarchy and will not be included in builds. For deployed servers, set the EDGEGAP_API_KEY environment variable."))
 			.AutoWrapText(true)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 		]
@@ -968,7 +968,7 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("SBServerTokenWarning", "Server Token is stored in DefaultEditor.ini and will not be included in builds. For deployed servers, set the EDGEGAP_SB_SERVER_TOKEN environment variable."))
+				.Text(LOCTEXT("SBServerTokenWarning", "Server Token is stored in the Editor config hierarchy and will not be included in builds. For deployed servers, set the EDGEGAP_SB_SERVER_TOKEN environment variable."))
 				.AutoWrapText(true)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 			]

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2024 Betide Studio. All Rights Reserved.
+// Copyright (c) 2024 Betide Studio. All Rights Reserved.
 
 
 #include "EGIKBlueprintFunctionLibrary.h"
@@ -6,18 +6,10 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Runtime/Core/Public/CoreGlobals.h"
 
-// Lazy-initialized normalized paths to avoid non-normalized path warnings in UE 5.6+
-static const FString& GetProjectEngineIniPath()
-{
-	static FString Path = FConfigCacheIni::NormalizeConfigIniPath(FPaths::ProjectConfigDir() / TEXT("DefaultEngine.ini"));
-	return Path;
-}
-
-static const FString& GetProjectEditorIniPath()
-{
-	static FString Path = FConfigCacheIni::NormalizeConfigIniPath(FPaths::ProjectConfigDir() / TEXT("DefaultEditor.ini"));
-	return Path;
-}
+// We use GEditorIni / GEngineIni instead of raw file paths.
+// See EdgegapSettings.cpp for the full explanation of why raw paths break in UE 5.6+.
+// In non-editor builds, GEditorIni is empty so GetString returns false gracefully,
+// and the env var fallback (checked first) is the primary mechanism for shipped servers.
 
 FString UEGIKBlueprintFunctionLibrary::Conv_EGIK_ErrorStructToString(FEGIK_ErrorStruct ErrorStruct)
 {
@@ -43,10 +35,10 @@ FString UEGIKBlueprintFunctionLibrary::GetAuthorizationKey()
 		return AuthorizationKey;
 	}
 
-	// 2. DefaultEditor.ini (editor-only, never ships with builds)
+	// 2. Editor config hierarchy (editor-only, never ships with builds)
 	if (GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("AuthorizationKey"), AuthorizationKey, GetProjectEditorIniPath());
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("AuthorizationKey"), AuthorizationKey, GEditorIni);
 	}
 
 	return AuthorizationKey;
@@ -61,10 +53,10 @@ FString UEGIKBlueprintFunctionLibrary::GetServerBrowserURL()
 		return Value;
 	}
 
-	// 2. DefaultEngine.ini (client-safe, ships with builds)
+	// 2. Engine config hierarchy (client-safe, ships with builds)
 	if (GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserURL"), Value, GetProjectEngineIniPath());
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserURL"), Value, GEngineIni);
 	}
 	return Value;
 }
@@ -78,10 +70,10 @@ FString UEGIKBlueprintFunctionLibrary::GetServerBrowserServerToken()
 		return Value;
 	}
 
-	// 2. DefaultEditor.ini (editor-only, never ships with builds)
+	// 2. Editor config hierarchy (editor-only, never ships with builds)
 	if (GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserServerToken"), Value, GetProjectEditorIniPath());
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserServerToken"), Value, GEditorIni);
 	}
 
 	return Value;
@@ -96,10 +88,10 @@ FString UEGIKBlueprintFunctionLibrary::GetServerBrowserClientToken()
 		return Value;
 	}
 
-	// 2. DefaultEngine.ini (client-safe, ships with builds)
+	// 2. Engine config hierarchy (client-safe, ships with builds)
 	if (GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserClientToken"), Value, GetProjectEngineIniPath());
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserClientToken"), Value, GEngineIni);
 	}
 	return Value;
 }
@@ -113,10 +105,10 @@ FString UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
 		return Value;
 	}
 
-	// 2. DefaultEngine.ini (client-safe, ships with builds)
+	// 2. Engine config hierarchy (client-safe, ships with builds)
 	if (GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingURL"), Value, GetProjectEngineIniPath());
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingURL"), Value, GEngineIni);
 	}
 
 	return Value;
@@ -137,16 +129,16 @@ FString UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
 		return Value;
 	}
 
-	// 2. DefaultEngine.ini (ships with builds)
+	// 2. Engine config hierarchy (ships with builds)
 	if (GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingAuthToken"), Value, GetProjectEngineIniPath());
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingAuthToken"), Value, GEngineIni);
 	}
 
-	// 3. DefaultEditor.ini fallback (editor-only)
+	// 3. Editor config hierarchy fallback (editor-only)
 	if (Value.IsEmpty() && GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingAuthToken"), Value, GetProjectEditorIniPath());
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingAuthToken"), Value, GEditorIni);
 	}
 
 	return Value;
@@ -163,12 +155,12 @@ bool UEGIKBlueprintFunctionLibrary::GetGroupPlayerMapping(const FString& GroupID
 	// Format is expected to be a JSON object mapping group IDs to player ID arrays
 	FString GroupMappingJson;
 	GetEnvironmentVariable("MM_GROUP_MAPPING", GroupMappingJson);
-	
+
 	if (GroupMappingJson.IsEmpty())
 	{
 		return false;
 	}
-	
+
 	// Parse the JSON
 	TSharedPtr<FJsonObject> GroupMapping;
 	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(GroupMappingJson);
@@ -176,20 +168,20 @@ bool UEGIKBlueprintFunctionLibrary::GetGroupPlayerMapping(const FString& GroupID
 	{
 		return false;
 	}
-	
+
 	// Check if the group ID exists in the mapping
 	if (!GroupMapping->HasField(GroupID))
 	{
 		return false;
 	}
-	
+
 	// Get the player IDs array for this group
 	const TArray<TSharedPtr<FJsonValue>>* PlayerIDsArray;
 	if (!GroupMapping->TryGetArrayField(GroupID, PlayerIDsArray))
 	{
 		return false;
 	}
-	
+
 	// Convert to string array
 	PlayerIDs.Empty();
 	for (const TSharedPtr<FJsonValue>& Value : *PlayerIDsArray)
@@ -199,7 +191,7 @@ bool UEGIKBlueprintFunctionLibrary::GetGroupPlayerMapping(const FString& GroupID
 			PlayerIDs.Add(Value->AsString());
 		}
 	}
-	
+
 	return PlayerIDs.Num() > 0;
 }
 
