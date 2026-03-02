@@ -62,18 +62,11 @@ void UEdgegapSettings::PostEditChangeProperty(struct FPropertyChangedEvent& Prop
 	if (PropertyName == TEXT("APIToken"))
 	{
 		bIsTokenVerified = false;
-		if (!APIToken.APIToken.IsEmpty())
-		{
-			AuthorizationKey = APIToken.APIToken;
-			GConfig->SetString(TEXT("EdgegapIntegrationKit"), TEXT("AuthorizationKey"), *AuthorizationKey, GEditorIni);
-			GConfig->Flush(false, GEditorIni);
-		}
 	}
 
 	// Server-only keys → Editor config (never ships with builds)
 	if (PropertyName == TEXT("AuthorizationKey"))
 	{
-		bIsTokenVerified = false;
 		GConfig->SetString(TEXT("EdgegapIntegrationKit"), TEXT("AuthorizationKey"), *AuthorizationKey, GEditorIni);
 		GConfig->Flush(false, GEditorIni);
 	}

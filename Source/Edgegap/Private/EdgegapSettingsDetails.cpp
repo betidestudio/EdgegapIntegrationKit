@@ -91,6 +91,25 @@ DEFINE_LOG_CATEGORY(EdgegapLog);
 
 #define EDGEGAP_API_URL "https://api.edgegap.com/"
 
+namespace
+{
+	FString GetDeployerToken(const UEdgegapSettings* EdgegapSettings)
+	{
+		if (!EdgegapSettings)
+		{
+			return FString();
+		}
+
+		// Backward compatibility: fall back to AuthorizationKey if Deployer Key is not set.
+		if (!EdgegapSettings->APIToken.APIToken.IsEmpty())
+		{
+			return EdgegapSettings->APIToken.APIToken;
+		}
+
+		return EdgegapSettings->AuthorizationKey;
+	}
+}
+
 class SDeployStatusListItem
 	: public SMultiColumnTableRow< TSharedPtr<struct FDeploymentStatusListItem> >
 {
@@ -299,7 +318,7 @@ namespace{
 
 		const UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
 		const FString _AppName = EdgegapSettings->ApplicationName.ToString();
-		const FString _APIToken = EdgegapSettings->AuthorizationKey;
+		const FString _APIToken = GetDeployerToken(EdgegapSettings);
 		const FString _Registry = EdgegapSettings->Registry;
 		const FString _ImageRepository = EdgegapSettings->ImageRepository;
 		const FString _PrivateRegistryUsername = EdgegapSettings->PrivateRegistryUsername;
@@ -619,12 +638,6 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	TSharedPtr<IPropertyHandle> IsTokenVerifiedProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, bIsTokenVerified));
 	DetailBuilder.HideProperty(IsTokenVerifiedProperty);
 
-	TSharedPtr<IPropertyHandle> LegacyAPITokenProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, APIToken));
-	if (LegacyAPITokenProperty.IsValid())
-	{
-		DetailBuilder.HideProperty(LegacyAPITokenProperty);
-	}
-
 	TSharedPtr<IPropertyHandle> AuthorizationKeyProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, AuthorizationKey));
 
 	if (ApiInfoCategory.IsParentLayoutValid() && AuthorizationKeyProperty.IsValid())
@@ -661,9 +674,15 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	TSharedPtr<IPropertyHandle> ApplicationNameProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, ApplicationName));
 	TSharedPtr<IPropertyHandle> VersionNameProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, VersionName));
 	TSharedPtr<IPropertyHandle> ImagePathProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, ImagePath));
-	TSharedPtr<IPropertyHandle> APITokenProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, AuthorizationKey));
+	TSharedPtr<IPropertyHandle> APITokenProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, APIToken));
 	TSharedPtr<IPropertyHandle> TagProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, Tag));
-	TSharedPtr<IPropertyHandle> APITokenStrProperty = APITokenProperty; // AuthorizationKey is now a direct FString
+	TSharedPtr<IPropertyHandle> APITokenStrProperty = APITokenProperty.IsValid()
+		? APITokenProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAPITokenSettings, APIToken))
+		: nullptr;
+	if (!APITokenStrProperty.IsValid())
+	{
+		APITokenStrProperty = AuthorizationKeyProperty;
+	}
 
 	// Customize the property's appearance and behavior
 	if (ApplicationNameProperty.IsValid())
@@ -1763,7 +1782,7 @@ void FEdgegapSettingsDetails::DockerBuild_Build(FString ImageName, FString Proje
 void FEdgegapSettingsDetails::Request_VerifyToken()
 {
 	const UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
-	FString APIToken = EdgegapSettings->AuthorizationKey;
+	FString APIToken = GetDeployerToken(EdgegapSettings);
 
 	const FString endpoint = FString::Printf(TEXT("v1/wizard/init-quick-start"));
 
@@ -1901,7 +1920,7 @@ void FEdgegapSettingsDetails::Request_CreateApplication(TSharedPtr<SButton> InCr
 
 	const UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
 	FString AppName = EdgegapSettings->ApplicationName.ToString();
-	FString APIToken = EdgegapSettings->AuthorizationKey;
+	FString APIToken = GetDeployerToken(EdgegapSettings);
 	FString ImagePath = EdgegapSettings->ImagePath.FilePath;
 
 	const FString endpoint = "v1/app";
@@ -2029,7 +2048,7 @@ void FEdgegapSettingsDetails::Request_RegistryCredentials()
 
 	const UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
 	FString AppName = EdgegapSettings->ApplicationName.ToString();
-	FString APIToken = EdgegapSettings->AuthorizationKey;
+	FString APIToken = GetDeployerToken(EdgegapSettings);
 
 	const FString endpoint = "v1/wizard/registry-credentials";
 	FString URL = FString::Printf(TEXT("%s%s"), TEXT(EDGEGAP_API_URL), *endpoint);
@@ -2675,7 +2694,7 @@ void FEdgegapSettingsDetails::Request_StopDeploy(FString RequestID, FString API_
 		}
 
 		const UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
-		const FString _APIToken = EdgegapSettings->AuthorizationKey;
+		const FString _APIToken = GetDeployerToken(EdgegapSettings);
 
 		Request_GetDeploymentsInfo(_APIToken, nullptr);
 	});

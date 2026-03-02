@@ -82,8 +82,8 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "API Key", DisplayName = "Authorization Key")
 	FString AuthorizationKey;
 
-	// Legacy token field kept for backward compatibility. AuthorizationKey is the active field.
-	UPROPERTY(Config)
+	// Deployer key field kept for compatibility with existing workflows.
+	UPROPERTY(Config, EditAnywhere, Category = "API Key", DisplayName = "Deployer Key")
 	FAPITokenSettings APIToken;
 
 	UPROPERTY(Config, EditAnywhere, Category = "Docker Settings", DisplayName = "Docker Path")
