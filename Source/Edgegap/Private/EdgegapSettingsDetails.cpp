@@ -1491,14 +1491,14 @@ void FEdgegapSettingsDetails::Containerize(FString DockerFilePath, FString Start
 	IPlatformFile::GetPlatformPhysical().CopyFile(*NewDockerFilePath, *DockerFilePath);
 	FFileHelper::LoadFileToString(DockerFileContent, *NewDockerFilePath);
 	DockerFileContent = DockerFileContent.Replace(*FString("<PROJECT_NAME>"), FApp::GetProjectName());
-	FFileHelper::SaveStringToFile(DockerFileContent, *NewDockerFilePath);
+	FFileHelper::SaveStringToFile(DockerFileContent, *NewDockerFilePath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 
 	FString StartScriptContent;
 	FString NewStartScriptPath = FPaths::Combine(ServerBuildPath, FPaths::GetCleanFilename(StartScriptPath));
 	IPlatformFile::GetPlatformPhysical().CopyFile(*NewStartScriptPath, *StartScriptPath);
 	FFileHelper::LoadFileToString(StartScriptContent, *NewStartScriptPath);
 	StartScriptContent = StartScriptContent.Replace(*FString("<PROJECT_NAME>"), FApp::GetProjectName());
-	FFileHelper::SaveStringToFile(StartScriptContent, *NewStartScriptPath);
+	FFileHelper::SaveStringToFile(StartScriptContent, *NewStartScriptPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 
 	FString CommandLine = FString::Printf(TEXT("docker build -t \"%s\" \"%s\""), *_ImageName, *ServerBuildPath);
 	UE_LOG(EdgegapLog, Log, TEXT("%s"), *CommandLine);
@@ -1666,7 +1666,7 @@ FString FEdgegapSettingsDetails::GenerateMultiStageDockerfile()
 	Dockerfile += TEXT("RUN sed -i 's/\\r$//' /home/ue4/project/StartServer.sh\n");
 	Dockerfile += TEXT("RUN chmod +x /home/ue4/project/StartServer.sh\n\n");
 	Dockerfile += TEXT("WORKDIR /home/ue4/project\n");
-	Dockerfile += TEXT("CMD [\"/home/ue4/project/StartServer.sh\"]\n");
+	Dockerfile += TEXT("CMD [\"/bin/bash\", \"/home/ue4/project/StartServer.sh\"]\n");
 
 	return Dockerfile;
 }
