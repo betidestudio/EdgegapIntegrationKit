@@ -11,7 +11,6 @@ struct FAPITokenSettings
 
 public:
 	// API Token
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "API Token")
+	UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category = "API Token")
 	FString APIToken;
 };
-

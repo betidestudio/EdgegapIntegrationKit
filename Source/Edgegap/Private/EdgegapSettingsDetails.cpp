@@ -619,10 +619,10 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	TSharedPtr<IPropertyHandle> IsTokenVerifiedProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, bIsTokenVerified));
 	DetailBuilder.HideProperty(IsTokenVerifiedProperty);
 
-	bool _bIsTokenVerified = false;
-	if (IsTokenVerifiedProperty.IsValid())
+	TSharedPtr<IPropertyHandle> LegacyAPITokenProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, APIToken));
+	if (LegacyAPITokenProperty.IsValid())
 	{
-		IsTokenVerifiedProperty->SetValue(false);
+		DetailBuilder.HideProperty(LegacyAPITokenProperty);
 	}
 
 	TSharedPtr<IPropertyHandle> AuthorizationKeyProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, AuthorizationKey));
@@ -1076,6 +1076,20 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 			AppNameWidgetRow->IsEnabled(bIsVerified);
 			AppImageWidgetRow->IsEnabled(bIsVerified);
 		});
+
+	bool bIsTokenVerified = true;
+	if (IsTokenVerifiedProperty.IsValid())
+	{
+		IsTokenVerifiedProperty->GetValue(bIsTokenVerified);
+	}
+	if (AppNameWidgetRow)
+	{
+		AppNameWidgetRow->IsEnabled(bIsTokenVerified);
+	}
+	if (AppImageWidgetRow)
+	{
+		AppImageWidgetRow->IsEnabled(bIsTokenVerified);
+	}
 }
 
 bool FEdgegapSettingsDetails::HandlePreExternalIconCopy(const FString& InChosenImage)

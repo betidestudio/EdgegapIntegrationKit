@@ -95,7 +95,7 @@ public:
 #if !WITH_UCIK
 		if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 		{
-			SettingsModule->UnregisterSettings("Project", "Plugins", "Edgegap");
+			SettingsModule->UnregisterSettings("Project", "Game", "Edgegap");
 		}
 #endif
 	}

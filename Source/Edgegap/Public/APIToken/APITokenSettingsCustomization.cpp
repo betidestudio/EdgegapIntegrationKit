@@ -41,10 +41,9 @@ void FAPITokenSettingsCustomization::CustomizeHeader(TSharedRef<IPropertyHandle>
 				return FText::FromString(APITokenStr); })
 																					  .OnTextCommitted_Lambda([this, PropertyChildHandle](const FText &InText, ETextCommit::Type CommitType)
 																											  {
-				if (CommitType == ETextCommit::OnEnter)
+				if (CommitType != ETextCommit::Default)
 				{
-					FString NewAPIKey = InText.ToString();
-
+					const FString NewAPIKey = InText.ToString();
 					PropertyChildHandle->SetValue(NewAPIKey);
 				} })] +
 			 SHorizontalBox::Slot()

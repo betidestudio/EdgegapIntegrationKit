@@ -79,10 +79,11 @@ public:
 
 	// Main Edgegap API key. SERVER-ONLY: do not ship in client builds.
 	// For dedicated servers, prefer setting the EDGEGAP_API_KEY environment variable.
-	UPROPERTY(EditAnywhere, Category = "API Key", DisplayName = "Authorization Key")
+	UPROPERTY(Config, EditAnywhere, Category = "API Key", DisplayName = "Authorization Key")
 	FString AuthorizationKey;
 
-	UPROPERTY(Config, EditAnywhere, Category = "API Key", DisplayName = "Deployer Key")
+	// Legacy token field kept for backward compatibility. AuthorizationKey is the active field.
+	UPROPERTY(Config)
 	FAPITokenSettings APIToken;
 
 	UPROPERTY(Config, EditAnywhere, Category = "Docker Settings", DisplayName = "Docker Path")
