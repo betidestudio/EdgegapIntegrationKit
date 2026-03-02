@@ -93,19 +93,31 @@ DEFINE_LOG_CATEGORY(EdgegapLog);
 
 namespace
 {
-	FString GetDeployerToken(const UEdgegapSettings* EdgegapSettings)
+	FString GetDeployerToken(const UEdgegapSettings* EdgegapSettings, FString* OutSource = nullptr)
 	{
 		if (!EdgegapSettings)
 		{
+			if (OutSource)
+			{
+				*OutSource = TEXT("None");
+			}
 			return FString();
 		}
 
 		// Backward compatibility: fall back to AuthorizationKey if Deployer Key is not set.
 		if (!EdgegapSettings->APIToken.APIToken.IsEmpty())
 		{
+			if (OutSource)
+			{
+				*OutSource = TEXT("DeployerKey");
+			}
 			return EdgegapSettings->APIToken.APIToken;
 		}
 
+		if (OutSource)
+		{
+			*OutSource = TEXT("AuthorizationKeyFallback");
+		}
 		return EdgegapSettings->AuthorizationKey;
 	}
 }
@@ -1782,7 +1794,20 @@ void FEdgegapSettingsDetails::DockerBuild_Build(FString ImageName, FString Proje
 void FEdgegapSettingsDetails::Request_VerifyToken()
 {
 	const UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
-	FString APIToken = GetDeployerToken(EdgegapSettings);
+	FString TokenSource;
+	FString APIToken = GetDeployerToken(EdgegapSettings, &TokenSource);
+
+	if (APIToken.IsEmpty())
+	{
+		UE_LOG(EdgegapLog, Warning, TEXT("VerifyToken: token is empty. Source=%s"), *TokenSource);
+
+		FNotificationInfo Info(LOCTEXT("VerifyTokenMissing", "Deployer Key is empty. Please set it before verifying."));
+		Info.ExpireDuration = 3.0f;
+		FSlateNotificationManager::Get().AddNotification(Info);
+		return;
+	}
+
+	UE_LOG(EdgegapLog, Log, TEXT("VerifyToken: sending request. Source=%s, TokenLength=%d"), *TokenSource, APIToken.Len());
 
 	const FString endpoint = FString::Printf(TEXT("v1/wizard/init-quick-start"));
 
@@ -1824,6 +1849,7 @@ void FEdgegapSettingsDetails::Request_VerifyToken()
 	Request->OnProcessRequestComplete().BindLambda([this](FHttpRequestPtr Request, FHttpResponsePtr ResponsePtr, bool bWasSuccessful)
 		{
 			int32 ResponseCode = ResponsePtr->GetResponseCode();
+			UE_LOG(EdgegapLog, Log, TEXT("VerifyToken: completed. Success=%s, ResponseCode=%d"), bWasSuccessful ? TEXT("true") : TEXT("false"), ResponseCode);
 
 			if (!bWasSuccessful || ResponseCode < 200 || ResponseCode > 299)
 			{
