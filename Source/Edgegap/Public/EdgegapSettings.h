@@ -95,6 +95,11 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Build Configurations", DisplayName = "Target Name Override")
 	FString OverridableTargetName = FString::Printf(TEXT("%sServer"), FApp::GetProjectName());
 
+	// Optional override for the startup script launcher target name (without extension).
+	// If empty, this falls back to Target Name Override.
+	UPROPERTY(Config, EditAnywhere, Category = "Build Configurations", DisplayName = "Server Launch Target Override")
+	FString StartScriptTargetNameOverride;
+
 	UPROPERTY(Config, EditAnywhere, Category = "Build Configurations", DisplayName = "Build Mode")
 	EEdgegapBuildMode BuildMode = EEdgegapBuildMode::LocalBuild;
 

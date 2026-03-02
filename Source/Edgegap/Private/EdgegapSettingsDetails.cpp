@@ -120,6 +120,27 @@ namespace
 		}
 		return EdgegapSettings->AuthorizationKey;
 	}
+
+	FString ResolveServerLaunchTargetName(const UEdgegapSettings* EdgegapSettings)
+	{
+		if (!EdgegapSettings)
+		{
+			return FString::Printf(TEXT("%sServer"), FApp::GetProjectName());
+		}
+
+		const FString LaunchOverride = EdgegapSettings->StartScriptTargetNameOverride.TrimStartAndEnd();
+		if (!LaunchOverride.IsEmpty())
+		{
+			return LaunchOverride;
+		}
+
+		if (!EdgegapSettings->OverridableTargetName.IsEmpty())
+		{
+			return EdgegapSettings->OverridableTargetName;
+		}
+
+		return FString::Printf(TEXT("%sServer"), FApp::GetProjectName());
+	}
 }
 
 class SDeployStatusListItem
@@ -1497,6 +1518,8 @@ void FEdgegapSettingsDetails::Containerize(FString DockerFilePath, FString Start
 	FString NewStartScriptPath = FPaths::Combine(ServerBuildPath, FPaths::GetCleanFilename(StartScriptPath));
 	IPlatformFile::GetPlatformPhysical().CopyFile(*NewStartScriptPath, *StartScriptPath);
 	FFileHelper::LoadFileToString(StartScriptContent, *NewStartScriptPath);
+	const FString LaunchTargetName = ResolveServerLaunchTargetName(EdgegapSettings);
+	StartScriptContent = StartScriptContent.Replace(*FString("<TARGET_FILE_NAME>"), *LaunchTargetName);
 	StartScriptContent = StartScriptContent.Replace(*FString("<PROJECT_NAME>"), FApp::GetProjectName());
 	FFileHelper::SaveStringToFile(StartScriptContent, *NewStartScriptPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 
@@ -1673,9 +1696,8 @@ FString FEdgegapSettingsDetails::GenerateMultiStageDockerfile()
 
 FString FEdgegapSettingsDetails::GenerateDockerBuildStartServerScript()
 {
-	const FString TargetName = GetMutableDefault<UEdgegapSettings>()->OverridableTargetName.IsEmpty()
-		? FString::Printf(TEXT("%sServer"), FApp::GetProjectName())
-		: GetMutableDefault<UEdgegapSettings>()->OverridableTargetName;
+	const UEdgegapSettings* EdgegapSettings = GetMutableDefault<UEdgegapSettings>();
+	const FString TargetName = ResolveServerLaunchTargetName(EdgegapSettings);
 
 	FString Script;
 	Script += TEXT("#!/bin/sh\n\n");

@@ -2,7 +2,41 @@
 
 pid=$$
 EXECUTABLE_PATH="$(dirname "$0")"
-: ${TARGET_FILE_NAME:="MyProjectServer"} # edit to match your .target.cs file name
+: ${TARGET_FILE_NAME:="<TARGET_FILE_NAME>"} # replaced during containerization
+
+resolve_server_launcher() {
+  local candidate
+
+  # 1) Explicit target name
+  if [ -n "$TARGET_FILE_NAME" ]; then
+    if [ -f "$EXECUTABLE_PATH/$TARGET_FILE_NAME.sh" ]; then
+      echo "$EXECUTABLE_PATH/$TARGET_FILE_NAME.sh"
+      return 0
+    fi
+    if [ -x "$EXECUTABLE_PATH/$TARGET_FILE_NAME" ]; then
+      echo "$EXECUTABLE_PATH/$TARGET_FILE_NAME"
+      return 0
+    fi
+  fi
+
+  # 2) First matching dedicated server launch script
+  for candidate in "$EXECUTABLE_PATH"/*Server.sh; do
+    if [ -f "$candidate" ]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+
+  # 3) First matching dedicated server binary
+  for candidate in "$EXECUTABLE_PATH"/*Server; do
+    if [ -x "$candidate" ] && [ "${candidate##*.}" = "${candidate}" ]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
 
 # ============================================
 # Signal handlers
@@ -50,16 +84,39 @@ fi
 # ============================================
 # Start game server
 # ============================================
+SERVER_LAUNCHER="$(resolve_server_launcher)"
+if [ -z "$SERVER_LAUNCHER" ]; then
+  separator
+  echo "Could not find dedicated server launcher in $EXECUTABLE_PATH"
+  echo "TARGET_FILE_NAME=$TARGET_FILE_NAME"
+  SERVER_EXIT_CODE=127
+else
+  SERVER_EXIT_CODE=0
+fi
+
 separator
-echo "Execute command: $EXECUTABLE_PATH/$TARGET_FILE_NAME.sh -log -PORT=$GAME_PORT $UE_COMMANDLINE_ARGS"
+if [ -n "$SERVER_LAUNCHER" ]; then
+  if [[ "$SERVER_LAUNCHER" == *.sh ]]; then
+    echo "Execute command: /bin/bash $SERVER_LAUNCHER -log -PORT=$GAME_PORT $UE_COMMANDLINE_ARGS"
+  else
+    echo "Execute command: $SERVER_LAUNCHER -log -PORT=$GAME_PORT $UE_COMMANDLINE_ARGS"
+  fi
+fi
 separator
-$EXECUTABLE_PATH/$TARGET_FILE_NAME.sh -log -PORT=$GAME_PORT $UE_COMMANDLINE_ARGS
+if [ -n "$SERVER_LAUNCHER" ]; then
+  if [[ "$SERVER_LAUNCHER" == *.sh ]]; then
+    /bin/bash "$SERVER_LAUNCHER" -log -PORT="$GAME_PORT" $UE_COMMANDLINE_ARGS
+  else
+    "$SERVER_LAUNCHER" -log -PORT="$GAME_PORT" $UE_COMMANDLINE_ARGS
+  fi
+  SERVER_EXIT_CODE=$?
+fi
 
 # ============================================
 # After game server process terminates
 # ============================================
 separator
-echo "Gameserver exit code: $?"
+echo "Gameserver exit code: $SERVER_EXIT_CODE"
 
 # ============================================
 # Call Edgegap self-stop API
@@ -111,4 +168,4 @@ fi
 echo "Waiting for Edgegap to terminate the deployment..."
 sleep 300
 echo "Safety timeout reached (5 min) — forcing container exit"
-exit 0
+exit "$SERVER_EXIT_CODE"
