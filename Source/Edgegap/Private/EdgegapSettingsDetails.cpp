@@ -247,10 +247,14 @@ namespace{
 		UProjectPackagingSettings* PackagingSettings = Cast<UProjectPackagingSettings>(UProjectPackagingSettings::StaticClass()->GetDefaultObject());
 		UPlatformsMenuSettings* PlatformsSettings = GetMutableDefault<UPlatformsMenuSettings>();
 
-		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(FString("UltimateCrossplayIntegrationKit"));
+		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(FString("EdgegapIntegrationKit"));
 		if (!Plugin.IsValid())
 		{
-			UE_LOG(EdgegapLog, Error, TEXT("UltimateCrossplayIntegrationKit plugin not found"));
+			Plugin = IPluginManager::Get().FindPlugin(FString("UltimateCrossplayIntegrationKit"));
+		}
+		if (!Plugin.IsValid())
+		{
+			UE_LOG(EdgegapLog, Error, TEXT("EdgegapIntegrationKit plugin not found (also checked UltimateCrossplayIntegrationKit fallback)"));
 			return;
 		}
 		FString PluginDir = Plugin->GetBaseDir();
