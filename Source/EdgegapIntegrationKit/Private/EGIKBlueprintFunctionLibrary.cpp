@@ -11,6 +11,29 @@
 // In non-editor builds, GEditorIni is empty so GetString returns false gracefully,
 // and the env var fallback (checked first) is the primary mechanism for shipped servers.
 
+namespace
+{
+	bool GetConfigStringWithLegacySections(const TCHAR* Key, FString& OutValue, const FString& ConfigFile)
+	{
+		if (!GConfig)
+		{
+			return false;
+		}
+
+		if (GConfig->GetString(TEXT("EdgegapIntegrationKit"), Key, OutValue, ConfigFile))
+		{
+			return true;
+		}
+
+		if (GConfig->GetString(TEXT("UltimateCrossplayIntegrationKit"), Key, OutValue, ConfigFile))
+		{
+			return true;
+		}
+
+		return GConfig->GetString(TEXT("Ultimate Crossplay Integration Kit"), Key, OutValue, ConfigFile);
+	}
+}
+
 FString UEGIKBlueprintFunctionLibrary::Conv_EGIK_ErrorStructToString(FEGIK_ErrorStruct ErrorStruct)
 {
 	return FString::Printf(TEXT("Error Code: %d, Error Message: %s"), ErrorStruct.ErrorCode, *ErrorStruct.ErrorMessage);
@@ -38,7 +61,7 @@ FString UEGIKBlueprintFunctionLibrary::GetAuthorizationKey()
 	// 2. Editor config hierarchy (editor-only, never ships with builds)
 	if (GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("AuthorizationKey"), AuthorizationKey, GEditorIni);
+		GetConfigStringWithLegacySections(TEXT("AuthorizationKey"), AuthorizationKey, GEditorIni);
 	}
 
 	return AuthorizationKey;
@@ -56,7 +79,7 @@ FString UEGIKBlueprintFunctionLibrary::GetServerBrowserURL()
 	// 2. Engine config hierarchy (client-safe, ships with builds)
 	if (GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserURL"), Value, GEngineIni);
+		GetConfigStringWithLegacySections(TEXT("ServerBrowserURL"), Value, GEngineIni);
 	}
 	return Value;
 }
@@ -73,7 +96,7 @@ FString UEGIKBlueprintFunctionLibrary::GetServerBrowserServerToken()
 	// 2. Editor config hierarchy (editor-only, never ships with builds)
 	if (GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserServerToken"), Value, GEditorIni);
+		GetConfigStringWithLegacySections(TEXT("ServerBrowserServerToken"), Value, GEditorIni);
 	}
 
 	return Value;
@@ -91,7 +114,7 @@ FString UEGIKBlueprintFunctionLibrary::GetServerBrowserClientToken()
 	// 2. Engine config hierarchy (client-safe, ships with builds)
 	if (GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserClientToken"), Value, GEngineIni);
+		GetConfigStringWithLegacySections(TEXT("ServerBrowserClientToken"), Value, GEngineIni);
 	}
 	return Value;
 }
@@ -108,7 +131,7 @@ FString UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
 	// 2. Engine config hierarchy (client-safe, ships with builds)
 	if (GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingURL"), Value, GEngineIni);
+		GetConfigStringWithLegacySections(TEXT("MatchmakingURL"), Value, GEngineIni);
 	}
 
 	return Value;
@@ -132,13 +155,13 @@ FString UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
 	// 2. Engine config hierarchy (ships with builds)
 	if (GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingAuthToken"), Value, GEngineIni);
+		GetConfigStringWithLegacySections(TEXT("MatchmakingAuthToken"), Value, GEngineIni);
 	}
 
 	// 3. Editor config hierarchy fallback (editor-only)
 	if (Value.IsEmpty() && GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingAuthToken"), Value, GEditorIni);
+		GetConfigStringWithLegacySections(TEXT("MatchmakingAuthToken"), Value, GEditorIni);
 	}
 
 	return Value;

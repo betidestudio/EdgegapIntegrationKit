@@ -21,6 +21,29 @@
 // For shipped builds: env vars are the primary mechanism (checked by BPL functions).
 // The GConfig fallback only matters in-editor during development.
 
+namespace
+{
+	bool GetConfigStringWithLegacySections(const TCHAR* Key, FString& OutValue, const FString& ConfigFile)
+	{
+		if (!GConfig)
+		{
+			return false;
+		}
+
+		if (GConfig->GetString(TEXT("EdgegapIntegrationKit"), Key, OutValue, ConfigFile))
+		{
+			return true;
+		}
+
+		if (GConfig->GetString(TEXT("UltimateCrossplayIntegrationKit"), Key, OutValue, ConfigFile))
+		{
+			return true;
+		}
+
+		return GConfig->GetString(TEXT("Ultimate Crossplay Integration Kit"), Key, OutValue, ConfigFile);
+	}
+}
+
 UEdgegapSettings::UEdgegapSettings()
 {
 #if PLATFORM_WINDOWS
@@ -32,14 +55,14 @@ UEdgegapSettings::UEdgegapSettings()
 	if(GConfig)
 	{
 		// Server-only keys: read from Editor config hierarchy (never ships with builds)
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("AuthorizationKey"), AuthorizationKey, GEditorIni);
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserServerToken"), ServerBrowserServerToken, GEditorIni);
+		GetConfigStringWithLegacySections(TEXT("AuthorizationKey"), AuthorizationKey, GEditorIni);
+		GetConfigStringWithLegacySections(TEXT("ServerBrowserServerToken"), ServerBrowserServerToken, GEditorIni);
 
 		// Client-safe keys: read from Engine config hierarchy (ships with builds)
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserURL"), ServerBrowserURL, GEngineIni);
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("ServerBrowserClientToken"), ServerBrowserClientToken, GEngineIni);
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingURL"), MatchmakingURL, GEngineIni);
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("MatchmakingAuthToken"), MatchmakingAuthToken, GEngineIni);
+		GetConfigStringWithLegacySections(TEXT("ServerBrowserURL"), ServerBrowserURL, GEngineIni);
+		GetConfigStringWithLegacySections(TEXT("ServerBrowserClientToken"), ServerBrowserClientToken, GEngineIni);
+		GetConfigStringWithLegacySections(TEXT("MatchmakingURL"), MatchmakingURL, GEngineIni);
+		GetConfigStringWithLegacySections(TEXT("MatchmakingAuthToken"), MatchmakingAuthToken, GEngineIni);
 	}
 }
 
@@ -67,6 +90,7 @@ void UEdgegapSettings::PostEditChangeProperty(struct FPropertyChangedEvent& Prop
 	// Server-only keys → Editor config (never ships with builds)
 	if (PropertyName == TEXT("AuthorizationKey"))
 	{
+		bIsTokenVerified = false;
 		GConfig->SetString(TEXT("EdgegapIntegrationKit"), TEXT("AuthorizationKey"), *AuthorizationKey, GEditorIni);
 		GConfig->Flush(false, GEditorIni);
 	}

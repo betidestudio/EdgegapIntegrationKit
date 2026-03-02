@@ -191,7 +191,14 @@ bool Edgegap::Can_BuildAndPush()
 void Edgegap::Do_OpenSettings()
 {
 #if WITH_UCIK
-    FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer(FName("Project"), FName("Game"), FName("Ultimate Crossplay Integration Kit"));
+    ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
+    if (!SettingsModule.ShowViewer(FName("Project"), FName("Game"), FName("Edgegap")))
+    {
+        if (!SettingsModule.ShowViewer(FName("Project"), FName("Game"), FName("UltimateCrossplayIntegrationKit")))
+        {
+            SettingsModule.ShowViewer(FName("Project"), FName("Game"), FName("Ultimate Crossplay Integration Kit"));
+        }
+    }
 #else
     FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer(FName("Project"), FName("Game"), FName("Edgegap"));
 #endif

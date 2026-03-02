@@ -690,15 +690,7 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	TSharedPtr<IPropertyHandle> ApplicationNameProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, ApplicationName));
 	TSharedPtr<IPropertyHandle> VersionNameProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, VersionName));
 	TSharedPtr<IPropertyHandle> ImagePathProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, ImagePath));
-	TSharedPtr<IPropertyHandle> APITokenProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, APIToken));
 	TSharedPtr<IPropertyHandle> TagProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UEdgegapSettings, Tag));
-	TSharedPtr<IPropertyHandle> APITokenStrProperty = APITokenProperty.IsValid()
-		? APITokenProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAPITokenSettings, APIToken))
-		: nullptr;
-	if (!APITokenStrProperty.IsValid())
-	{
-		APITokenStrProperty = AuthorizationKeyProperty;
-	}
 
 	// Customize the property's appearance and behavior
 	if (ApplicationNameProperty.IsValid())
@@ -714,6 +706,11 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 		[
 			ApplicationNameProperty->CreatePropertyValueWidget()
 		];
+	}
+
+	if (VersionNameProperty.IsValid())
+	{
+		ApplicationInfoCategory.AddProperty(VersionNameProperty);
 	}
 
 	if (ImagePathProperty.IsValid())
@@ -870,13 +867,12 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 		[
 			SAssignNew(DeploymentStatuRefresh_SBtn, SButton)
 			.Text(LOCTEXT("Refresh", "Refresh"))
-		.OnClicked_Lambda([this, APITokenStrProperty]()
+		.OnClicked_Lambda([this]()
 			{
 				DeploymentStatuRefresh_SBtn->SetEnabled(false);
 
-				FString APITokenStr;
-				APITokenStrProperty->GetValue(APITokenStr);
-				Request_GetDeploymentsInfo(APITokenStr, DeploymentStatuRefresh_SBtn);
+				const UEdgegapSettings* EdgegapSettings = GetDefault<UEdgegapSettings>();
+				Request_GetDeploymentsInfo(GetDeployerToken(EdgegapSettings), DeploymentStatuRefresh_SBtn);
 				return(FReply::Handled());
 			})
 		]
@@ -886,18 +882,17 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 		[
 			SAssignNew(CreateNewDeployment_SBtn, SButton)
 			.Text(LOCTEXT("CreateNewDeployment", "Create New Deployment"))
-		.OnClicked_Lambda([this, ApplicationNameProperty, VersionNameProperty, APITokenStrProperty]()
+		.OnClicked_Lambda([this, ApplicationNameProperty, VersionNameProperty]()
 			{
 				CreateNewDeployment_SBtn->SetEnabled(false);
 
 				FText AppNameTxt;
-				FString APITokenStr;
 				FString VersionNameStr;
 				ApplicationNameProperty->GetValue(AppNameTxt);
-				APITokenStrProperty->GetValue(APITokenStr);
 				VersionNameProperty->GetValue(VersionNameStr);
 
-				Request_DeployApp(AppNameTxt.ToString(), VersionNameStr, APITokenStr, CreateNewDeployment_SBtn);
+				const UEdgegapSettings* EdgegapSettings = GetDefault<UEdgegapSettings>();
+				Request_DeployApp(AppNameTxt.ToString(), VersionNameStr, GetDeployerToken(EdgegapSettings), CreateNewDeployment_SBtn);
 				return(FReply::Handled());
 			})
 		]
@@ -1097,9 +1092,8 @@ void FEdgegapSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 
 	// Get Defaults
 
-	FString APITokenStr;
-	APITokenStrProperty->GetValue(APITokenStr);
-	Request_GetDeploymentsInfo(APITokenStr, nullptr);
+	const UEdgegapSettings* EdgegapSettings = GetDefault<UEdgegapSettings>();
+	Request_GetDeploymentsInfo(GetDeployerToken(EdgegapSettings), nullptr);
 	Request_VerifyToken();
 
 	// --- Binds and Delegates
@@ -1852,11 +1846,35 @@ void FEdgegapSettingsDetails::Request_VerifyToken()
 	// Binding
 	Request->OnProcessRequestComplete().BindLambda([this](FHttpRequestPtr Request, FHttpResponsePtr ResponsePtr, bool bWasSuccessful)
 		{
+			if (!ResponsePtr.IsValid())
+			{
+				OnIsTokenVerifiedChanged.ExecuteIfBound(false);
+				if (UEdgegapSettings* MutableEdgegapSettings = GetMutableDefault<UEdgegapSettings>())
+				{
+					MutableEdgegapSettings->bIsTokenVerified = false;
+					MutableEdgegapSettings->SaveConfig(CPF_Config, *MutableEdgegapSettings->GetDefaultConfigFilename());
+				}
+
+				UE_LOG(EdgegapLog, Warning, TEXT("VerifyTokenComplete callback: HTTP response invalid"));
+
+				FNotificationInfo Info(LOCTEXT("OperationFailed", "Operation failed. See logs for more information"));
+				Info.ExpireDuration = 3.0f;
+				FSlateNotificationManager::Get().AddNotification(Info);
+				return;
+			}
+
 			int32 ResponseCode = ResponsePtr->GetResponseCode();
 			UE_LOG(EdgegapLog, Log, TEXT("VerifyToken: completed. Success=%s, ResponseCode=%d"), bWasSuccessful ? TEXT("true") : TEXT("false"), ResponseCode);
 
 			if (!bWasSuccessful || ResponseCode < 200 || ResponseCode > 299)
 			{
+				OnIsTokenVerifiedChanged.ExecuteIfBound(false);
+				if (UEdgegapSettings* MutableEdgegapSettings = GetMutableDefault<UEdgegapSettings>())
+				{
+					MutableEdgegapSettings->bIsTokenVerified = false;
+					MutableEdgegapSettings->SaveConfig(CPF_Config, *MutableEdgegapSettings->GetDefaultConfigFilename());
+				}
+
 				FString Response = ResponsePtr->GetContentAsString();
 				UE_LOG(EdgegapLog, Warning, TEXT("VerifyTokenComplete callback: HTTP request failed with code %d and response: %s"), ResponseCode, *Response);
 
@@ -1878,6 +1896,13 @@ void FEdgegapSettingsDetails::Request_VerifyToken()
 				{
 					if (JsonValue->AsObject()->HasField(UTF8_TO_TCHAR("message")))
 					{
+						OnIsTokenVerifiedChanged.ExecuteIfBound(false);
+						if (UEdgegapSettings* MutableEdgegapSettings = GetMutableDefault<UEdgegapSettings>())
+						{
+							MutableEdgegapSettings->bIsTokenVerified = false;
+							MutableEdgegapSettings->SaveConfig(CPF_Config, *MutableEdgegapSettings->GetDefaultConfigFilename());
+						}
+
 						FString message = JsonValue->AsObject()->GetStringField(UTF8_TO_TCHAR("message"));
 						UE_LOG(EdgegapLog, Error, TEXT("VerifyTokenComplete callback: Failed, message:%s"), *message);
 
@@ -1906,6 +1931,13 @@ void FEdgegapSettingsDetails::Request_VerifyToken()
 			}
 			else
 			{
+				OnIsTokenVerifiedChanged.ExecuteIfBound(false);
+				if (UEdgegapSettings* MutableEdgegapSettings = GetMutableDefault<UEdgegapSettings>())
+				{
+					MutableEdgegapSettings->bIsTokenVerified = false;
+					MutableEdgegapSettings->SaveConfig(CPF_Config, *MutableEdgegapSettings->GetDefaultConfigFilename());
+				}
+
 				UE_LOG(EdgegapLog, Error, TEXT("VerifyTokenComplete callback: Could not deserialize response into Json, Response:%s"), *Response);
 
 				FNotificationInfo Info(LOCTEXT("OperationFailed", "Operation failed. See logs for more information"));
@@ -2135,6 +2167,9 @@ void FEdgegapSettingsDetails::Request_RegistryCredentials()
 			MutableEdgegapSettings->PrivateRegistryToken = Token;
 
 			MutableEdgegapSettings->SaveConfig();
+#if WITH_EDITOR
+			UEdgegapSettings::OnSettingsChange.Broadcast(MutableEdgegapSettings);
+#endif
 		}
 		else
 		{
@@ -2346,7 +2381,7 @@ void FEdgegapSettingsDetails::onCreateVersionComplete(FHttpRequestPtr RequestPtr
 
 void FEdgegapSettingsDetails::Request_DeployApp(FString AppName, FString VersionName, FString API_key, TSharedPtr<SButton> InCreateNewDeployment_SBtn)
 {
-	const FString IpifyIPsURL = "http://api.ipify.org/";
+	const FString IpifyIPsURL = "https://api.ipify.org/";
 
 	FHttpModule* Http = &FHttpModule::Get();
 	if (!Http)
@@ -2373,7 +2408,6 @@ void FEdgegapSettingsDetails::Request_DeployApp(FString AppName, FString Version
 	IpifyRequest->SetHeader(TEXT("User-Agent"), TEXT("X-UnrealEngine-Agent"));
 
 	IpifyRequest->SetHeader("Content-Type", "application/json");
-	IpifyRequest->SetHeader(TEXT("Authorization"), *API_key);
 
 	IpifyRequest->OnProcessRequestComplete().BindLambda([this, AppName, VersionName, InCreateNewDeployment_SBtn, API_key](FHttpRequestPtr RequestRes, FHttpResponsePtr ResponsePtr, bool bWasSuccessful)
 		{
