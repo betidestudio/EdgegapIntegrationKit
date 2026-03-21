@@ -58,6 +58,13 @@ UEdgegapSettings::UEdgegapSettings()
 		GetConfigStringWithLegacySections(TEXT("AuthorizationKey"), AuthorizationKey, GEditorIni);
 		GetConfigStringWithLegacySections(TEXT("ServerBrowserServerToken"), ServerBrowserServerToken, GEditorIni);
 
+		// Load Deployer Key from Editor config (synced here by PostEditChangeProperty)
+		FString DeployerKey;
+		if (GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("DeployerKey"), DeployerKey, GEditorIni) && !DeployerKey.IsEmpty())
+		{
+			APIToken.APIToken = DeployerKey;
+		}
+
 		// Client-safe keys: read from Engine config hierarchy (ships with builds)
 		GetConfigStringWithLegacySections(TEXT("ServerBrowserURL"), ServerBrowserURL, GEngineIni);
 		GetConfigStringWithLegacySections(TEXT("ServerBrowserClientToken"), ServerBrowserClientToken, GEngineIni);
@@ -85,6 +92,13 @@ void UEdgegapSettings::PostEditChangeProperty(struct FPropertyChangedEvent& Prop
 	if (PropertyName == TEXT("APIToken"))
 	{
 		bIsTokenVerified = false;
+		// Sync Deployer Key to Editor config so the Runtime module can find it
+		// (Runtime reads from GEditorIni since it can't access UEdgegapSettings)
+		if (!APIToken.APIToken.IsEmpty())
+		{
+			GConfig->SetString(TEXT("EdgegapIntegrationKit"), TEXT("DeployerKey"), *APIToken.APIToken, GEditorIni);
+			GConfig->Flush(false, GEditorIni);
+		}
 	}
 
 	// Server-only keys → Editor config (never ships with builds)

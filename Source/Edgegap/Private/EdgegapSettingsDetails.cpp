@@ -2060,6 +2060,15 @@ void FEdgegapSettingsDetails::Request_CreateApplication(TSharedPtr<SButton> InCr
 			InCreateApplication_SBtn->SetEnabled(true);
 		}
 
+		if (!ResponsePtr.IsValid())
+		{
+			UE_LOG(EdgegapLog, Error, TEXT("onCreateAppComplete: HTTP response is invalid (connection failed or timed out)"));
+			FNotificationInfo Info(LOCTEXT("OperationFailed", "Operation failed. See logs for more information"));
+			Info.ExpireDuration = 3.0f;
+			FSlateNotificationManager::Get().AddNotification(Info);
+			return;
+		}
+
 		if (!bWasSuccessful || ResponsePtr->GetResponseCode() < 200 || ResponsePtr->GetResponseCode() > 299)
 		{
 			FString Response = ResponsePtr->GetContentAsString();
@@ -2151,6 +2160,12 @@ void FEdgegapSettingsDetails::Request_RegistryCredentials()
 	Request->OnProcessRequestComplete().BindLambda([this](FHttpRequestPtr Request, FHttpResponsePtr ResponsePtr, bool bWasSuccessful)
 	{
 		UEdgegapSettings* MutableEdgegapSettings = GetMutableDefault<UEdgegapSettings>();
+
+		if (!ResponsePtr.IsValid())
+		{
+			UE_LOG(EdgegapLog, Error, TEXT("Callback_RegistryCredentials: HTTP response is invalid (connection failed or timed out)"));
+			return;
+		}
 
 		if (!bWasSuccessful || ResponsePtr->GetResponseCode() < 200 || ResponsePtr->GetResponseCode() > 299)
 		{
@@ -2358,6 +2373,12 @@ void FEdgegapSettingsDetails::CreateVersion(FString AppName, FString VersionName
 
 void FEdgegapSettingsDetails::onCreateVersionComplete(FHttpRequestPtr RequestPtr, FHttpResponsePtr ResponsePtr, bool bWasSuccessful)
 {
+	if (!ResponsePtr.IsValid())
+	{
+		UE_LOG(EdgegapLog, Error, TEXT("onCreateVersionComplete: HTTP response is invalid (connection failed or timed out)"));
+		return;
+	}
+
 	if (!bWasSuccessful || ResponsePtr->GetResponseCode() < 200 || ResponsePtr->GetResponseCode() > 299)
 	{
 		FString Response = ResponsePtr->GetContentAsString();
@@ -2436,6 +2457,15 @@ void FEdgegapSettingsDetails::Request_DeployApp(FString AppName, FString Version
 			if (InCreateNewDeployment_SBtn)
 			{
 				InCreateNewDeployment_SBtn->SetEnabled(true);
+			}
+
+			if (!ResponsePtr.IsValid())
+			{
+				UE_LOG(EdgegapLog, Error, TEXT("onIpifyRequest: HTTP response is invalid (connection failed or timed out)"));
+				FNotificationInfo Info(LOCTEXT("OperationFailed", "Operation failed. See logs for more information"));
+				Info.ExpireDuration = 3.0f;
+				FSlateNotificationManager::Get().AddNotification(Info);
+				return;
 			}
 
 			if (!bWasSuccessful || ResponsePtr->GetResponseCode() < 200 || ResponsePtr->GetResponseCode() > 299)
@@ -2527,6 +2557,15 @@ void FEdgegapSettingsDetails::Request_DeployApp(FString AppName, FString Version
 						if (InCreateNewDeployment_SBtn)
 						{
 							InCreateNewDeployment_SBtn->SetEnabled(true);
+						}
+
+						if (!ResponsePtr.IsValid())
+						{
+							UE_LOG(EdgegapLog, Error, TEXT("onDeployApp: HTTP response is invalid (connection failed or timed out)"));
+							FNotificationInfo Info(LOCTEXT("OperationFailed", "Operation failed. See logs for more information"));
+							Info.ExpireDuration = 3.0f;
+							FSlateNotificationManager::Get().AddNotification(Info);
+							return;
 						}
 
 						if (!bWasSuccessful || ResponsePtr->GetResponseCode() < 200 || ResponsePtr->GetResponseCode() > 299)
@@ -2654,6 +2693,12 @@ void FEdgegapSettingsDetails::Request_GetDeploymentsInfo(FString API_key, TShare
 
 		FEdgegapSettingsDetails::GetInstance()->DeployStatusOverrideListSource.Empty();
 
+		if (!ResponsePtr.IsValid())
+		{
+			UE_LOG(EdgegapLog, Error, TEXT("Callback_GetDeploymentsInfo: HTTP response is invalid (connection failed or timed out)"));
+			return;
+		}
+
 		if (!bWasSuccessful || ResponsePtr->GetResponseCode() < 200 || ResponsePtr->GetResponseCode() > 299)
 		{
 			FString Response = ResponsePtr->GetContentAsString();
@@ -2772,6 +2817,12 @@ void FEdgegapSettingsDetails::Request_StopDeploy(FString RequestID, FString API_
 
 	Request->OnProcessRequestComplete().BindLambda([this](FHttpRequestPtr Request, FHttpResponsePtr ResponsePtr, bool bWasSuccessful)
 	{
+		if (!ResponsePtr.IsValid())
+		{
+			UE_LOG(EdgegapLog, Error, TEXT("Callback_StopDeploy: HTTP response is invalid (connection failed or timed out)"));
+			return;
+		}
+
 		if (!bWasSuccessful || ResponsePtr->GetResponseCode() < 200 || ResponsePtr->GetResponseCode() > 299)
 		{
 			FString Response = ResponsePtr->GetContentAsString();

@@ -61,6 +61,14 @@ FString UEGIKBlueprintFunctionLibrary::GetAuthorizationKey()
 	// 2. Editor config hierarchy (editor-only, never ships with builds)
 	if (GConfig)
 	{
+		// Try Deployer Key first (synced to GEditorIni by UEdgegapSettings::PostEditChangeProperty)
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("DeployerKey"), AuthorizationKey, GEditorIni);
+		if (!AuthorizationKey.IsEmpty())
+		{
+			return AuthorizationKey;
+		}
+
+		// Fall back to Authorization Key (legacy and direct-entry path)
 		GetConfigStringWithLegacySections(TEXT("AuthorizationKey"), AuthorizationKey, GEditorIni);
 	}
 
