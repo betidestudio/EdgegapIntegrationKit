@@ -11,7 +11,7 @@ export async function GET(_req: Request, { params }: RouteContext<'/og/docs/[...
   if (!page) notFound();
 
   return new ImageResponse(
-    <DefaultImage title={page.data.title} description={page.data.description} site="EOS Integration Kit" />,
+    <DefaultImage title={page.data.title} description={page.data.description} site="Edgegap Integration Kit" />,
     {
       width: 1200,
       height: 630,
