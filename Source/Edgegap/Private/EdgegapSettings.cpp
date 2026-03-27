@@ -58,9 +58,13 @@ UEdgegapSettings::UEdgegapSettings()
 		GetConfigStringWithLegacySections(TEXT("AuthorizationKey"), AuthorizationKey, GEditorIni);
 		GetConfigStringWithLegacySections(TEXT("ServerBrowserServerToken"), ServerBrowserServerToken, GEditorIni);
 
-		// Load Deployer Key from Editor config (synced here by PostEditChangeProperty)
+		// Load Deployer Key: try Editor config first, fall back to Engine config (packaged builds)
 		FString DeployerKey;
 		if (GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("DeployerKey"), DeployerKey, GEditorIni) && !DeployerKey.IsEmpty())
+		{
+			APIToken.APIToken = DeployerKey;
+		}
+		else if (GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("DeployerKey"), DeployerKey, GEngineIni) && !DeployerKey.IsEmpty())
 		{
 			APIToken.APIToken = DeployerKey;
 		}
@@ -92,21 +96,55 @@ void UEdgegapSettings::PostEditChangeProperty(struct FPropertyChangedEvent& Prop
 	if (PropertyName == TEXT("APIToken"))
 	{
 		bIsTokenVerified = false;
-		// Sync Deployer Key to Editor config so the Runtime module can find it
-		// (Runtime reads from GEditorIni since it can't access UEdgegapSettings)
+		// Sync Deployer Key to Editor config (for in-editor Runtime module)
 		if (!APIToken.APIToken.IsEmpty())
 		{
 			GConfig->SetString(TEXT("EdgegapIntegrationKit"), TEXT("DeployerKey"), *APIToken.APIToken, GEditorIni);
 			GConfig->Flush(false, GEditorIni);
+			// Also write to Engine config if user opted in (ships with packaged builds)
+			if (bIncludeTokenInPackagedBuilds)
+			{
+				GConfig->SetString(TEXT("EdgegapIntegrationKit"), TEXT("DeployerKey"), *APIToken.APIToken, GEngineIni);
+				GConfig->Flush(false, GEngineIni);
+			}
 		}
 	}
 
-	// Server-only keys → Editor config (never ships with builds)
+	// Sync AuthorizationKey
 	if (PropertyName == TEXT("AuthorizationKey"))
 	{
 		bIsTokenVerified = false;
 		GConfig->SetString(TEXT("EdgegapIntegrationKit"), TEXT("AuthorizationKey"), *AuthorizationKey, GEditorIni);
 		GConfig->Flush(false, GEditorIni);
+		if (bIncludeTokenInPackagedBuilds)
+		{
+			GConfig->SetString(TEXT("EdgegapIntegrationKit"), TEXT("AuthorizationKey"), *AuthorizationKey, GEngineIni);
+			GConfig->Flush(false, GEngineIni);
+		}
+	}
+
+	// When the toggle changes, sync or remove tokens from Engine config immediately
+	if (PropertyName == TEXT("bIncludeTokenInPackagedBuilds"))
+	{
+		if (bIncludeTokenInPackagedBuilds)
+		{
+			if (!APIToken.APIToken.IsEmpty())
+			{
+				GConfig->SetString(TEXT("EdgegapIntegrationKit"), TEXT("DeployerKey"), *APIToken.APIToken, GEngineIni);
+			}
+			if (!AuthorizationKey.IsEmpty())
+			{
+				GConfig->SetString(TEXT("EdgegapIntegrationKit"), TEXT("AuthorizationKey"), *AuthorizationKey, GEngineIni);
+			}
+			GConfig->Flush(false, GEngineIni);
+		}
+		else
+		{
+			// Remove tokens from Engine config so they don't ship
+			GConfig->SetString(TEXT("EdgegapIntegrationKit"), TEXT("DeployerKey"), TEXT(""), GEngineIni);
+			GConfig->SetString(TEXT("EdgegapIntegrationKit"), TEXT("AuthorizationKey"), TEXT(""), GEngineIni);
+			GConfig->Flush(false, GEngineIni);
+		}
 	}
 	if (PropertyName == TEXT("ServerBrowserServerToken"))
 	{

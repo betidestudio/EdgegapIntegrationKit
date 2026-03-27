@@ -86,6 +86,13 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "API Key", DisplayName = "Deployer Key")
 	FAPITokenSettings APIToken;
 
+	// When enabled, the API token is written to DefaultEngine.ini so it ships with packaged builds.
+	// This allows Blueprint API calls (e.g. CreateDeploymentV2) to work in packaged games without
+	// setting the EDGEGAP_API_KEY environment variable. WARNING: Anyone can extract the token from
+	// a shipped build. Only enable this if you accept that risk.
+	UPROPERTY(Config, EditAnywhere, Category = "API Key", DisplayName = "Include Token in Packaged Builds")
+	bool bIncludeTokenInPackagedBuilds = false;
+
 	UPROPERTY(Config, EditAnywhere, Category = "Docker Settings", DisplayName = "Docker Path")
 	FString DockerPath;
 

@@ -70,6 +70,19 @@ FString UEGIKBlueprintFunctionLibrary::GetAuthorizationKey()
 
 		// Fall back to Authorization Key (legacy and direct-entry path)
 		GetConfigStringWithLegacySections(TEXT("AuthorizationKey"), AuthorizationKey, GEditorIni);
+		if (!AuthorizationKey.IsEmpty())
+		{
+			return AuthorizationKey;
+		}
+
+		// 3. Engine config (ships with packaged builds - less secure but works for users
+		//    who accept the risk of baking the token into DefaultEngine.ini)
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("DeployerKey"), AuthorizationKey, GEngineIni);
+		if (!AuthorizationKey.IsEmpty())
+		{
+			return AuthorizationKey;
+		}
+		GetConfigStringWithLegacySections(TEXT("AuthorizationKey"), AuthorizationKey, GEngineIni);
 	}
 
 	return AuthorizationKey;
