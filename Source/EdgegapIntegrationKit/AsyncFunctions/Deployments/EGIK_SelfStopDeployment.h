@@ -10,8 +10,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FSelfStopDeploymentResponse, bool, 
 
 /**
  * Self-terminates a deployment from within the running container.
- * This endpoint is designed to be called by the game server itself.
- * DELETE /v1/self/stop/{request_id}/{access_point_id}
+ * This endpoint is designed to be called by the game server itself using
+ * Edgegap's injected ARBITRIUM_DELETE_URL and ARBITRIUM_DELETE_TOKEN values.
  */
 UCLASS()
 class EDGEGAPINTEGRATIONKIT_API UEGIK_SelfStopDeployment : public UEGIK_AsyncRequestBase
@@ -19,13 +19,13 @@ class EDGEGAPINTEGRATIONKIT_API UEGIK_SelfStopDeployment : public UEGIK_AsyncReq
 	GENERATED_BODY()
 
 public:
+	virtual void Activate() override;
+
 	/**
 	 * Self-stop a deployment from within the container
-	 * @param RequestId The deployment request ID
-	 * @param AccessPointId The access point ID of the deployment
 	 */
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"), Category = "Edgegap Integration Kit | Deployment")
-	static UEGIK_SelfStopDeployment* SelfStopDeployment(const FString& RequestId, const FString& AccessPointId);
+	static UEGIK_SelfStopDeployment* SelfStopDeployment();
 
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Deployment")
 	FSelfStopDeploymentResponse OnSuccess;
@@ -36,11 +36,8 @@ public:
 protected:
 	virtual FString GetEndpointURL() const override;
 	virtual EEGIK_HttpVerb GetHTTPVerb() const override;
+	virtual FString GetAuthorizationHeader() const override;
 	virtual void ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject) override;
 	virtual void HandleError(int32 ErrorCode, const FString& ErrorMessage) override;
 	virtual FString GetLogCategory() const override { return TEXT("Deployment"); }
-
-private:
-	FString Var_RequestId;
-	FString Var_AccessPointId;
 };

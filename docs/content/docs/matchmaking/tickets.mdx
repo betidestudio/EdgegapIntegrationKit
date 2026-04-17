@@ -1,7 +1,11 @@
 ---
-title: Tickets
-description: Single-player ticket flow — create, poll, connect, cancel
+title: Tickets (Deprecated)
+description: Legacy ticket flow retained for existing projects
 ---
+
+<Callout type="warn">
+Ticket Blueprint nodes are deprecated for new client matchmaking flows. Use [Group Up](/matchmaking/group-up) for new party, group, and solo matchmaking integrations.
+</Callout>
 
 <Callout type="info">
 Edgegap Matchmaker is in active development with frequent updates. For the latest configuration examples, rule types, and API changes, see the [official Edgegap Matchmaking docs](https://docs.edgegap.com/learn/matchmaking) and [In-Depth Guide](https://docs.edgegap.com/learn/matchmaker-in-depth).
@@ -11,13 +15,13 @@ Edgegap Matchmaker is in active development with frequent updates. For the lates
 **Free tier** shuts down after 3 hours. If tickets go straight to `CANCELLED`, restart your matchmaker from the [Edgegap dashboard](https://app.edgegap.com). Free tier is also limited to 1 deployment at a time.
 </Callout>
 
-## Step 1 — Build Attributes & Create Ticket
+## Step 1 - Build Attributes And Create Ticket
 
 1. Build a JSON object with your matchmaking attributes. These must match your [matchmaker profile configuration](/matchmaking/profiles).
 2. For latency-based matching, include `beacons` with measured ping values per region.
 3. Fill `FEGIK_CreateMatchmakingStruct` with `Profile`, `Attributes` JSON, and optionally `PlayerIp`.
 4. Call `CreateMatchmakingTicket`.
-5. On success, save the `TicketId` from the response — you need it for polling and cancellation.
+5. On success, save the `TicketId` from the response. You need it for polling and cancellation.
 
 {/* ![Build attributes JSON and create matchmaking ticket](/screenshots/matchmaking-tickets-create.png) */}
 
@@ -35,11 +39,11 @@ Your attributes must match the rules in your matchmaker config. Example for a pr
 }
 ```
 
-## Step 2 — Poll Status & Connect
+## Step 2 - Poll Status And Connect
 
 After creating a ticket, poll `GetMatchmakingTicket` on a timer until the assignment is available.
 
-1. Set up a looping timer (every 3-5 seconds).
+1. Set up a looping timer every 3-5 seconds.
 2. Call `GetMatchmakingTicket` with the saved `TicketId`.
 3. Break the response and check `Assignment.IsNullOrEmpty`.
 4. When assignment arrives, read `FQDN` and `GamePort.External` from the `AssignmentStruct`.
@@ -56,7 +60,7 @@ Your ticket progresses through these statuses:
 | `SEARCHING` | Looking for other players matching your rules |
 | `TEAM_FOUND` | Enough players found for your team, looking for opponents |
 | `MATCH_FOUND` | All teams assembled, server deployment starting |
-| `HOST_ASSIGNED` | Server ready — `assignment` contains connection details |
+| `HOST_ASSIGNED` | Server ready; `assignment` contains connection details |
 | `CANCELLED` | Ticket expired or was deleted |
 
 <Callout type="warn">
@@ -65,15 +69,15 @@ Your ticket progresses through these statuses:
 
 ## Cancel Queue
 
-Call `DeleteMatchmakingTicket` with the `TicketId` to cancel. Returns `409 Conflict` if the match is already found and a deployment is starting — at that point you can't cancel.
+Call `DeleteMatchmakingTicket` with the `TicketId` to cancel. Returns `409 Conflict` if the match is already found and a deployment is starting; at that point you can't cancel.
 
 {/* ![Delete matchmaking ticket to cancel queue](/screenshots/matchmaking-tickets-cancel.png) */}
 
 ## Error Handling
 
-- `429 Too Many Requests` — rate limited. Retry with exponential backoff.
-- `404 Not Found` — ticket was deleted or reached its removal period. Create a new one.
-- `409 Conflict` — can't delete ticket after match is found.
+- `429 Too Many Requests` - rate limited. Retry with exponential backoff.
+- `404 Not Found` - ticket was deleted or reached its removal period. Create a new one.
+- `409 Conflict` - can't delete ticket after match is found.
 
 ## C++ Example
 
@@ -92,4 +96,4 @@ Node->Activate();
 
 ## Legacy Group Tickets
 
-`CreateGroupTicket` is deprecated for client usage. Use [Group Up](/matchmaking/group-up) for party/group flows instead. Keep `CreateGroupTicket` only for server-to-server compatibility.
+`CreateGroupTicket` is deprecated. Use [Group Up](/matchmaking/group-up) for party and group matchmaking flows instead.

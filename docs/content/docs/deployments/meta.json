@@ -1,4 +1,4 @@
 {
   "title": "Deployments",
-  "pages": ["create-v1", "create-v2", "manage", "list-filter"]
+  "pages": ["create-v2", "manage", "list-filter"]
 }

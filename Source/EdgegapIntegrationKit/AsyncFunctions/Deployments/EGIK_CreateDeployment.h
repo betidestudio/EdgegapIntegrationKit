@@ -94,7 +94,7 @@ class EDGEGAPINTEGRATIONKIT_API UEGIK_CreateDeployment : public UEGIK_AsyncReque
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"), Category = "Edgegap Integration Kit | Deployment")
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", DeprecatedFunction, DeprecationMessage = "CreateDeployment uses the legacy v1 deployment format. Use CreateDeploymentV2 for new deployment flows."), Category = "Edgegap Integration Kit | Deployment")
 	static UEGIK_CreateDeployment* CreateDeployment(FEGIK_CreateDeploymentStruct DeploymentStruct);
 
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Deployment")

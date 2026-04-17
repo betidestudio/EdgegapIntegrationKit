@@ -19,7 +19,7 @@ class EDGEGAPINTEGRATIONKIT_API UEGIK_CreateMatchmakingTicket : public UEGIK_Asy
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"), Category = "Edgegap Integration Kit | Matchmaking")
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", DeprecatedFunction, DeprecationMessage = "Tickets are deprecated for new client matchmaking flows. Use Group Up endpoints under Edgegap Integration Kit | Group Up."), Category = "Edgegap Integration Kit | Matchmaking")
 	static UEGIK_CreateMatchmakingTicket* CreateMatchmakingTicket(const FEGIK_CreateMatchmakingStruct& MatchmakingStruct);
 
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Matchmaking")

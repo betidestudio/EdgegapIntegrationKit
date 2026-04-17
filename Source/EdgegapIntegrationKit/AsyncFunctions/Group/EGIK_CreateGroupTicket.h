@@ -61,7 +61,7 @@ class EDGEGAPINTEGRATIONKIT_API UEGIK_CreateGroupTicket : public UEGIK_AsyncRequ
 
 public:
 
-	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", DeprecatedFunction, DeprecationMessage = "Group Tickets is a legacy server-to-server flow. Prefer Group Up endpoints under Edgegap Integration Kit | Group Up for game client integrations."), Category = "Edgegap Integration Kit | Group")
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", DeprecatedFunction, DeprecationMessage = "Group Tickets are deprecated. Use Group Up endpoints under Edgegap Integration Kit | Group Up for party and group matchmaking flows."), Category = "Edgegap Integration Kit | Group")
 	static UEGIK_CreateGroupTicket* CreateGroupTicket(const FEGIK_CreateGroupTicketRequest& Request);
 
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Group")
