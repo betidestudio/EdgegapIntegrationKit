@@ -1,10 +1,38 @@
-﻿// Copyright (c) 2024 Betide Studio. All Rights Reserved.
+// Copyright (c) 2024 Betide Studio. All Rights Reserved.
 
 
 #include "EGIKBlueprintFunctionLibrary.h"
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Runtime/Core/Public/CoreGlobals.h"
+
+// We use GEditorIni / GEngineIni instead of raw file paths.
+// See EdgegapSettings.cpp for the full explanation of why raw paths break in UE 5.6+.
+// In non-editor builds, GEditorIni is empty so GetString returns false gracefully,
+// and the env var fallback (checked first) is the primary mechanism for shipped servers.
+
+namespace
+{
+	bool GetConfigStringWithLegacySections(const TCHAR* Key, FString& OutValue, const FString& ConfigFile)
+	{
+		if (!GConfig)
+		{
+			return false;
+		}
+
+		if (GConfig->GetString(TEXT("EdgegapIntegrationKit"), Key, OutValue, ConfigFile))
+		{
+			return true;
+		}
+
+		if (GConfig->GetString(TEXT("UltimateCrossplayIntegrationKit"), Key, OutValue, ConfigFile))
+		{
+			return true;
+		}
+
+		return GConfig->GetString(TEXT("Ultimate Crossplay Integration Kit"), Key, OutValue, ConfigFile);
+	}
+}
 
 FString UEGIKBlueprintFunctionLibrary::Conv_EGIK_ErrorStructToString(FEGIK_ErrorStruct ErrorStruct)
 {
@@ -23,13 +51,141 @@ FString UEGIKBlueprintFunctionLibrary::Conv_EGIK_MatchmakingResponseToString(FEG
 
 FString UEGIKBlueprintFunctionLibrary::GetAuthorizationKey()
 {
-	FString AuthorizationKey;
-	FString ProjectEngineIniPath = FPaths::ProjectConfigDir() / TEXT("DefaultEngine.ini");
+	// 1. Environment variable (recommended for servers)
+	FString AuthorizationKey = FPlatformMisc::GetEnvironmentVariable(TEXT("EDGEGAP_API_KEY"));
+	if (!AuthorizationKey.IsEmpty())
+	{
+		return AuthorizationKey;
+	}
+
+	// 2. Editor config hierarchy (editor-only, never ships with builds)
 	if (GConfig)
 	{
-		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("AuthorizationKey"), AuthorizationKey, ProjectEngineIniPath);
+		// Try Deployer Key first (synced to GEditorIni by UEdgegapSettings::PostEditChangeProperty)
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("DeployerKey"), AuthorizationKey, GEditorIni);
+		if (!AuthorizationKey.IsEmpty())
+		{
+			return AuthorizationKey;
+		}
+
+		// Fall back to Authorization Key (legacy and direct-entry path)
+		GetConfigStringWithLegacySections(TEXT("AuthorizationKey"), AuthorizationKey, GEditorIni);
+		if (!AuthorizationKey.IsEmpty())
+		{
+			return AuthorizationKey;
+		}
+
+		// 3. Engine config (ships with packaged builds - less secure but works for users
+		//    who accept the risk of baking the token into DefaultEngine.ini)
+		GConfig->GetString(TEXT("EdgegapIntegrationKit"), TEXT("DeployerKey"), AuthorizationKey, GEngineIni);
+		if (!AuthorizationKey.IsEmpty())
+		{
+			return AuthorizationKey;
+		}
+		GetConfigStringWithLegacySections(TEXT("AuthorizationKey"), AuthorizationKey, GEngineIni);
 	}
+
 	return AuthorizationKey;
+}
+
+FString UEGIKBlueprintFunctionLibrary::GetServerBrowserURL()
+{
+	// 1. Environment variable
+	FString Value = FPlatformMisc::GetEnvironmentVariable(TEXT("EDGEGAP_SB_URL"));
+	if (!Value.IsEmpty())
+	{
+		return Value;
+	}
+
+	// 2. Engine config hierarchy (client-safe, ships with builds)
+	if (GConfig)
+	{
+		GetConfigStringWithLegacySections(TEXT("ServerBrowserURL"), Value, GEngineIni);
+	}
+	return Value;
+}
+
+FString UEGIKBlueprintFunctionLibrary::GetServerBrowserServerToken()
+{
+	// 1. Environment variable (recommended for servers)
+	FString Value = FPlatformMisc::GetEnvironmentVariable(TEXT("EDGEGAP_SB_SERVER_TOKEN"));
+	if (!Value.IsEmpty())
+	{
+		return Value;
+	}
+
+	// 2. Editor config hierarchy (editor-only, never ships with builds)
+	if (GConfig)
+	{
+		GetConfigStringWithLegacySections(TEXT("ServerBrowserServerToken"), Value, GEditorIni);
+	}
+
+	return Value;
+}
+
+FString UEGIKBlueprintFunctionLibrary::GetServerBrowserClientToken()
+{
+	// 1. Environment variable
+	FString Value = FPlatformMisc::GetEnvironmentVariable(TEXT("EDGEGAP_SB_CLIENT_TOKEN"));
+	if (!Value.IsEmpty())
+	{
+		return Value;
+	}
+
+	// 2. Engine config hierarchy (client-safe, ships with builds)
+	if (GConfig)
+	{
+		GetConfigStringWithLegacySections(TEXT("ServerBrowserClientToken"), Value, GEngineIni);
+	}
+	return Value;
+}
+
+FString UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
+{
+	// 1. Environment variable
+	FString Value = FPlatformMisc::GetEnvironmentVariable(TEXT("EDGEGAP_MM_URL"));
+	if (!Value.IsEmpty())
+	{
+		return Value;
+	}
+
+	// 2. Engine config hierarchy (client-safe, ships with builds)
+	if (GConfig)
+	{
+		GetConfigStringWithLegacySections(TEXT("MatchmakingURL"), Value, GEngineIni);
+	}
+
+	return Value;
+}
+
+FString UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
+{
+	// 1. Environment variables
+	FString Value = FPlatformMisc::GetEnvironmentVariable(TEXT("EDGEGAP_MM_AUTH_TOKEN"));
+	if (!Value.IsEmpty())
+	{
+		return Value;
+	}
+
+	Value = FPlatformMisc::GetEnvironmentVariable(TEXT("EDGEGAP_MATCHMAKER_AUTH_TOKEN"));
+	if (!Value.IsEmpty())
+	{
+		return Value;
+	}
+
+	// 2. Engine config hierarchy (ships with builds)
+	if (GConfig)
+	{
+		GetConfigStringWithLegacySections(TEXT("MatchmakingAuthToken"), Value, GEngineIni);
+	}
+
+	// 3. Editor config hierarchy fallback (editor-only)
+	if (Value.IsEmpty() && GConfig)
+	{
+		GetConfigStringWithLegacySections(TEXT("MatchmakingAuthToken"), Value, GEditorIni);
+	}
+
+	return Value;
 }
 
 void UEGIKBlueprintFunctionLibrary::GetEnvironmentVariable(FString Key, FString& Value)
@@ -43,12 +199,12 @@ bool UEGIKBlueprintFunctionLibrary::GetGroupPlayerMapping(const FString& GroupID
 	// Format is expected to be a JSON object mapping group IDs to player ID arrays
 	FString GroupMappingJson;
 	GetEnvironmentVariable("MM_GROUP_MAPPING", GroupMappingJson);
-	
+
 	if (GroupMappingJson.IsEmpty())
 	{
 		return false;
 	}
-	
+
 	// Parse the JSON
 	TSharedPtr<FJsonObject> GroupMapping;
 	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(GroupMappingJson);
@@ -56,20 +212,20 @@ bool UEGIKBlueprintFunctionLibrary::GetGroupPlayerMapping(const FString& GroupID
 	{
 		return false;
 	}
-	
+
 	// Check if the group ID exists in the mapping
 	if (!GroupMapping->HasField(GroupID))
 	{
 		return false;
 	}
-	
+
 	// Get the player IDs array for this group
 	const TArray<TSharedPtr<FJsonValue>>* PlayerIDsArray;
 	if (!GroupMapping->TryGetArrayField(GroupID, PlayerIDsArray))
 	{
 		return false;
 	}
-	
+
 	// Convert to string array
 	PlayerIDs.Empty();
 	for (const TSharedPtr<FJsonValue>& Value : *PlayerIDsArray)
@@ -79,7 +235,7 @@ bool UEGIKBlueprintFunctionLibrary::GetGroupPlayerMapping(const FString& GroupID
 			PlayerIDs.Add(Value->AsString());
 		}
 	}
-	
+
 	return PlayerIDs.Num() > 0;
 }
 

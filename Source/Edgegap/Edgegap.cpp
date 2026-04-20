@@ -15,9 +15,11 @@ void Edgegap::StartupModule()
 {
 	RegisterSettings();
 
+#if !WITH_UCIK
 	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomPropertyTypeLayout(FAPITokenSettings::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FAPITokenSettingsCustomization::MakeInstance));
 	PropertyModule.RegisterCustomClassLayout(UEdgegapSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FEdgegapSettingsDetails::MakeInstance));
+#endif
 
     EdgegapPluginCommands::Register();
 
@@ -36,7 +38,7 @@ void Edgegap::StartupModule()
     UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &Edgegap::RegisterMenus));
 
 #if WITH_EDITOR
-        UEdgegapSettings::OnSettingsChange.AddRaw(this, &Edgegap::OnEdgegapSettingsChanged);
+    UEdgegapSettings::OnSettingsChange.AddRaw(this, &Edgegap::OnEdgegapSettingsChanged);
 #endif
 
     if (!StyleSet.IsValid())
@@ -63,9 +65,11 @@ void Edgegap::ShutdownModule()
 	{
 		UnregisterSettings();
 
+#if !WITH_UCIK
 		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.UnregisterCustomPropertyTypeLayout(FAPITokenSettings::StaticStruct()->GetFName());
 		PropertyModule.UnregisterCustomClassLayout(UEdgegapSettings::StaticClass()->GetFName());
+#endif
 
         if (StyleSet.IsValid())
         {
@@ -139,6 +143,12 @@ void Edgegap::OnEdgegapSettingsChanged(UEdgegapSettings const* InSettings)
     // Update bCanBuildAndPush
     bCanBuildAndPush = !InSettings->Registry.IsEmpty() && !InSettings->ImageRepository.IsEmpty() && !InSettings->PrivateRegistryToken.IsEmpty() && !InSettings->PrivateRegistryUsername.IsEmpty();
 
+    // For Docker Build mode, also require GitHub credentials
+    if (InSettings->BuildMode == EEdgegapBuildMode::DockerBuild)
+    {
+        bCanBuildAndPush = bCanBuildAndPush && !InSettings->GitHubUsername.IsEmpty() && !InSettings->GitHubPAT.IsEmpty() && !InSettings->UEDockerImageTag.IsEmpty();
+    }
+
     // Update bCanOpenSettings
     bCanOpenSettings = true;
 }
@@ -157,12 +167,20 @@ void EdgegapPluginCommands::RegisterCommands()
         "Settings...",
         "Edgagap Settings",
         EUserInterfaceActionType::Button,
-        FInputGesture());
+        FInputChord());
 }
 
 void Edgegap::Do_BuildAndPush()
 {
-    FEdgegapSettingsDetails::PackageProject("linux");
+    const UEdgegapSettings* EdgegapSettings = GetDefault<UEdgegapSettings>();
+    if (EdgegapSettings->BuildMode == EEdgegapBuildMode::DockerBuild)
+    {
+        FEdgegapSettingsDetails::DockerBuildAndPush();
+    }
+    else
+    {
+        FEdgegapSettingsDetails::PackageProject("linux");
+    }
 }
 
 bool Edgegap::Can_BuildAndPush()
@@ -172,7 +190,18 @@ bool Edgegap::Can_BuildAndPush()
 
 void Edgegap::Do_OpenSettings()
 {
+#if WITH_UCIK
+    ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
+    if (!SettingsModule.ShowViewer(FName("Project"), FName("Game"), FName("Edgegap")))
+    {
+        if (!SettingsModule.ShowViewer(FName("Project"), FName("Game"), FName("UltimateCrossplayIntegrationKit")))
+        {
+            SettingsModule.ShowViewer(FName("Project"), FName("Game"), FName("Ultimate Crossplay Integration Kit"));
+        }
+    }
+#else
     FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer(FName("Project"), FName("Game"), FName("Edgegap"));
+#endif
 }
 
 bool Edgegap::Can_OpenSettings()

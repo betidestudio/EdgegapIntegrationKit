@@ -1,0 +1,32 @@
+---
+title: Environment Variables
+description: Runtime env vars supported by EGIK for API keys and service tokens
+---
+
+## Priority Rule
+
+Runtime environment variables are preferred over config values when supported.
+
+## Supported Secret Variables
+
+| Variable | Used By | Purpose |
+|---|---|---|
+| `EDGEGAP_API_KEY` | Core deployment APIs | Authorization key override |
+| `EDGEGAP_SB_SERVER_TOKEN` | Server Browser server calls | Server token override |
+| `EDGEGAP_SB_CLIENT_TOKEN` | Server Browser client calls | Client token override |
+| `EDGEGAP_MM_AUTH_TOKEN` | Matchmaking / Group Up / Backfill | Matchmaker token override |
+| `EDGEGAP_MATCHMAKER_AUTH_TOKEN` | Matchmaking fallback | Alternate matchmaker token name |
+
+{/* ![Environment variable matrix](/screenshots/security-env.png) */}
+
+Service URLs, Edgegap runtime information, matchmaking runtime helpers, and self-stop variables are covered in [Manage Deployments](/deployments/manage#runtime-environment-variables).
+
+## Unreal C++ Read Example
+
+```cpp
+#include "EGIKBlueprintFunctionLibrary.h"
+
+FString Value;
+UEGIKBlueprintFunctionLibrary::GetEnvironmentVariable(TEXT("EDGEGAP_MM_AUTH_TOKEN"), Value);
+UE_LOG(LogTemp, Log, TEXT("EDGEGAP_MM_AUTH_TOKEN=%s"), Value.IsEmpty() ? TEXT("<not set>") : TEXT("<set>"));
+```

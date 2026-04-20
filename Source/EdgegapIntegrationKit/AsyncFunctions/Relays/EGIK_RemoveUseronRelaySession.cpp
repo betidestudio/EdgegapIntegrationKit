@@ -1,5 +1,4 @@
-﻿// Copyright (c) 2024 Betide Studio. All Rights Reserved.
-
+// Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_RemoveUseronRelaySession.h"
 
@@ -12,58 +11,37 @@ UEGIK_RemoveUseronRelaySession* UEGIK_RemoveUseronRelaySession::RemoveUseronRela
 	return Node;
 }
 
-void UEGIK_RemoveUseronRelaySession::Activate()
+FString UEGIK_RemoveUseronRelaySession::GetEndpointURL() const
 {
-	Super::Activate();
-	FHttpModule* Http = &FHttpModule::Get();
-	TSharedRef<IHttpRequest> Request = Http->CreateRequest();
-	Request->SetVerb("POST");
-	Request->SetURL("https://api.edgegap.com/v1/relays/sessions:revoke-user");
-	Request->SetHeader("Content-Type", "application/json");
-	Request->SetHeader("Authorization", UEGIKBlueprintFunctionLibrary::GetAuthorizationKey());
+	return TEXT("https://api.edgegap.com/v1/relays/sessions:revoke-user");
+}
+
+EEGIK_HttpVerb UEGIK_RemoveUseronRelaySession::GetHTTPVerb() const
+{
+	return EEGIK_HttpVerb::POST;
+}
+
+TSharedPtr<FJsonObject> UEGIK_RemoveUseronRelaySession::BuildRequestBody() const
+{
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 	JsonObject->SetStringField("session_id", Var_SessionId);
 	JsonObject->SetStringField("authorization_token", Var_AuthorizationToken);
-	FString Content;
-	TSharedRef<TJsonWriter<TCHAR>> Writer = TJsonWriterFactory<>::Create(&Content);
-	FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
-	Request->SetContentAsString(Content);
-	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_RemoveUseronRelaySession::OnResponseReceived);
-	if (!Request->ProcessRequest())
-	{
-		OnFailure.Broadcast(FEGIK_RelaySessionInfo(), FEGIK_ErrorStruct(0, "Failed to process request"));
-		SetReadyToDestroy();
-		MarkAsGarbage();
-	}
+	return JsonObject;
 }
 
-void UEGIK_RemoveUseronRelaySession::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest,
-	TSharedPtr<IHttpResponse> HttpResponse, bool bArg)
+void UEGIK_RemoveUseronRelaySession::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)
 {
-	if (HttpResponse.IsValid())
+	if (JsonObject.IsValid())
 	{
-		if (EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
-		{
-			TSharedPtr<FJsonObject> JsonObject;
-			TSharedRef<TJsonReader<TCHAR>> Reader = TJsonReaderFactory<TCHAR>::Create(HttpResponse->GetContentAsString());
-			if (FJsonSerializer::Deserialize(Reader, JsonObject))
-			{
-				OnSuccess.Broadcast(JsonObject, FEGIK_ErrorStruct());
-			}
-			else
-			{
-				OnFailure.Broadcast(FEGIK_RelaySessionInfo(), FEGIK_ErrorStruct(0, "Failed to deserialize response"));
-			}
-		}
-		else
-		{
-			OnFailure.Broadcast(FEGIK_RelaySessionInfo(), FEGIK_ErrorStruct(HttpResponse->GetResponseCode(), HttpResponse->GetContentAsString()));
-		}
+		OnSuccess.Broadcast(JsonObject, FEGIK_ErrorStruct());
 	}
 	else
 	{
-		OnFailure.Broadcast(FEGIK_RelaySessionInfo(), FEGIK_ErrorStruct(0, "Failed to process request"));
+		OnFailure.Broadcast(FEGIK_RelaySessionInfo(), FEGIK_ErrorStruct(0, "Failed to deserialize response"));
 	}
-	SetReadyToDestroy();
-	MarkAsGarbage();
+}
+
+void UEGIK_RemoveUseronRelaySession::HandleError(int32 ErrorCode, const FString& ErrorMessage)
+{
+	OnFailure.Broadcast(FEGIK_RelaySessionInfo(), FEGIK_ErrorStruct(ErrorCode, ErrorMessage));
 }

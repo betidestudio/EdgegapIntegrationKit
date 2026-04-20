@@ -1,0 +1,40 @@
+---
+title: Common Issues
+description: Fast fixes for the most common Unreal + EGIK integration failures
+---
+
+{/* ![Troubleshooting decision map](/screenshots/troubleshooting.png) */}
+
+## 1) Node fails with 401/403
+
+- Check token type (Server Browser server vs client token).
+- Check token source precedence (env var might override settings).
+- Verify URL points to correct service.
+
+## 2) Matchmaking never assigns
+
+- Validate profile string exactly.
+- Validate attributes JSON keys and value types.
+- Confirm `is_ready=true` path when using Group Up.
+
+## 3) Group member delete/update returns conflict
+
+- Group may already be in matchmaking.
+- Use `DeleteGroup` for leader queue cancel once search started.
+
+## 4) Server Browser reservations expire
+
+- Confirm reservation quickly from dedicated server using `SB_ConfirmReservations`.
+- Ensure player IDs match exactly between reserve and confirm.
+
+## 5) Deployment created but not reachable
+
+- Check returned `FQDN` and selected game port.
+- Verify container port mapping and server listen port.
+- Check container logs for startup errors.
+
+## Debug Tips
+
+- Log every request ID and member/ticket ID.
+- Keep one centralized formatter for profile attribute JSON.
+- Test each flow first with minimal payload, then add optional fields.

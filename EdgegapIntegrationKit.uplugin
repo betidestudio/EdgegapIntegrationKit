@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "1.7",
+	"VersionName": "2.0",
 	"FriendlyName": "Edgegap Integration Kit",
 	"Description": "Edgegap Integration Kit is a plugin that allows you to integrate Edgegap's services into your Unreal Engine project.",
 	"Category": "Betide Studio",
@@ -10,7 +10,7 @@
 	"DocsURL": "https://docs.edgegap.com/docs/",
 	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/3d3e8e5a9f3f4f7fa0411d4fef2f7e25",
 	"SupportURL": "https://discord.gg/betidestudio",
-	"EngineVersion": "5.6.0",
+	"EngineVersion": "5.7.0",
 	"CanContainContent": true,
 	"IsBetaVersion": false,
 	"IsExperimentalVersion": false,
@@ -20,7 +20,7 @@
 			"Name": "EdgegapIntegrationKit",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Linux",
 				"Mac",
@@ -32,16 +32,20 @@
 			"Name": "Edgegap",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
-				"Win64"
+			"PlatformAllowList": [
+				"Win64",
+				"Mac",
+				"Linux"
 			]
 		},
 		{
 			"Name": "UCMDHelper",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
-				"Win64"
+			"PlatformAllowList": [
+				"Win64",
+				"Mac",
+				"Linux"
 			]
 		}
 	]

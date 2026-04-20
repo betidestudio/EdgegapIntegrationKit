@@ -9,5 +9,6 @@ RUN useradd -rm -d /home/ubuntu -s /bin/bash -g root -G sudo -u 1000 m -o
 RUN sudo chown -R m:sudo *
 # replace for linux-compatible line endings
 RUN sed -i 's/\r$//' /app/StartServer.sh
+RUN chmod +x /app/StartServer.sh
 USER m
-CMD ./StartServer.sh
+CMD ["/bin/bash", "/app/StartServer.sh"]

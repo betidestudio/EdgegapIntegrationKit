@@ -1,0 +1,128 @@
+---
+title: Manage Deployments
+description: Poll status, read runtime variables, compose join links, fetch logs/metrics, and stop deployments
+---
+
+## Core Nodes
+
+- `GetDeploymentStatusAndInfo`
+- `UpdateDeploymentProperties`
+- `GetContainerLogs`
+- `GetDeploymentMetrics`
+- `SelfStopDeployment`
+- `DeleteDeployment`
+- `BulkStopDeployments`
+
+{/* ![Deployment management node map](/screenshots/deployment-manage.png) */}
+
+## Typical Runtime Loop
+
+1. Poll status by `RequestId`.
+2. When ready, set `bIsJoinableBySession=true` if needed.
+3. Collect logs/metrics on failures.
+4. Publish the join address through matchmaking, Server Browser, or your backend.
+5. Stop deployment when the match ends.
+
+## C++ Poll Example
+
+```cpp
+#include "Deployments/EGIK_DeploymentStatusAndInfo.h"
+
+auto* Node = UEGIK_DeploymentStatusAndInfo::GetDeploymentStatusAndInfo(RequestId);
+Node->OnSuccess.AddDynamic(this, &UMySubsystem::OnDeploymentStatus);
+Node->Activate();
+```
+
+## Runtime Environment Variables
+
+Edgegap injects runtime variables into the game server container. Use them from the dedicated server to bind the correct port, publish a join address, register with Server Browser, or stop the deployment.
+
+Service URL overrides:
+
+| Variable | Used By | Purpose |
+|---|---|---|
+| `EDGEGAP_SB_URL` | Server Browser nodes | Server Browser base URL override |
+| `EDGEGAP_MM_URL` | Matchmaking, Group Up, Backfill nodes | Matchmaker base URL override |
+
+Runtime information:
+
+| Variable | Used By | Purpose |
+|---|---|---|
+| `ARBITRIUM_REQUEST_ID` | Runtime helper, status lookups, Server Browser registration | Current deployment request ID. This is not needed to stop a deployment. |
+| `ARBITRIUM_PUBLIC_IP` | Runtime helper | Public IP for direct connection flows |
+| `ARBITRIUM_PORT_GAMEPORT_INTERNAL` | Game server startup | Internal port your server should listen on when your port is named `gameport` |
+| `ARBITRIUM_PORT_GAMEPORT_EXTERNAL` | Join address publishing | External port clients connect to when your port is named `gameport` |
+| `ARBITRIUM_PORT_GAMEPORT_PROTOCOL` | Join address publishing | Protocol for the `gameport` port |
+| `ARBITRIUM_PORTS_MAPPING` | Runtime helper | JSON map of all named ports and their internal/external values |
+| `ARBITRIUM_CONTEXT_URL` | Runtime helper | Deployment context endpoint, callable from inside the deployment |
+| `ARBITRIUM_CONTEXT_TOKEN` | Runtime helper | Authorization token for `ARBITRIUM_CONTEXT_URL` |
+| `ARBITRIUM_DEPLOYMENT_LOCATION` | Runtime helper | JSON location payload for the deployment |
+| `ARBITRIUM_DEPLOYMENT_TAGS` | Runtime helper | Comma-delimited deployment tags |
+| `MM_GROUP_MAPPING` | Matchmaking server helpers | Group-to-player mapping JSON |
+| `MM_EXPANSION_STAGE` | Matchmaking server helpers | Active matchmaker expansion stage |
+| `MM_MATCH_PROFILE` | Matchmaking server helpers | Active match profile |
+
+Shutdown variables:
+
+| Variable | Used By | Purpose |
+|---|---|---|
+| `ARBITRIUM_DELETE_URL` | `SelfStopDeployment`, shutdown subsystem | Self-stop endpoint injected for this deployment |
+| `ARBITRIUM_DELETE_TOKEN` | `SelfStopDeployment`, shutdown subsystem | Authorization token for `ARBITRIUM_DELETE_URL` |
+
+If your Edgegap port name is not `gameport`, Edgegap exposes equivalent sanitized variables for that port name. For example, a port named `server port` uses `ARBITRIUM_PORT_SERVER_PORT_INTERNAL`, `ARBITRIUM_PORT_SERVER_PORT_EXTERNAL`, and `ARBITRIUM_PORT_SERVER_PORT_PROTOCOL`.
+
+## Blueprint Read Example
+
+Use `Get Environment Variable` from `EGIKBlueprintFunctionLibrary`.
+
+1. Set `Key` to `ARBITRIUM_REQUEST_ID` and save the output as `RequestId`.
+2. Set `Key` to `ARBITRIUM_PORT_GAMEPORT_EXTERNAL` and save the output as `ExternalPort`.
+3. Format `{RequestId}.pr.edgegap.net:{ExternalPort}`.
+4. Publish that value through matchmaking, Server Browser, or your backend so clients can run `open {JoinAddress}`.
+
+## C++ Read Example
+
+```cpp
+#include "EGIKBlueprintFunctionLibrary.h"
+
+FString RequestId;
+FString InternalPort;
+FString ExternalPort;
+
+UEGIKBlueprintFunctionLibrary::GetEnvironmentVariable(TEXT("ARBITRIUM_REQUEST_ID"), RequestId);
+UEGIKBlueprintFunctionLibrary::GetEnvironmentVariable(TEXT("ARBITRIUM_PORT_GAMEPORT_INTERNAL"), InternalPort);
+UEGIKBlueprintFunctionLibrary::GetEnvironmentVariable(TEXT("ARBITRIUM_PORT_GAMEPORT_EXTERNAL"), ExternalPort);
+
+UE_LOG(LogTemp, Log, TEXT("RequestId=%s InternalPort=%s ExternalPort=%s"), *RequestId, *InternalPort, *ExternalPort);
+```
+
+## Compose A Join Link
+
+For the default `gameport` port name, compose the client join address from `ARBITRIUM_REQUEST_ID` and `ARBITRIUM_PORT_GAMEPORT_EXTERNAL`:
+
+```cpp
+#include "EGIKBlueprintFunctionLibrary.h"
+
+FString RequestId;
+FString ExternalPort;
+UEGIKBlueprintFunctionLibrary::GetEnvironmentVariable(TEXT("ARBITRIUM_REQUEST_ID"), RequestId);
+UEGIKBlueprintFunctionLibrary::GetEnvironmentVariable(TEXT("ARBITRIUM_PORT_GAMEPORT_EXTERNAL"), ExternalPort);
+
+const FString JoinAddress = FString::Printf(TEXT("%s.pr.edgegap.net:%s"), *RequestId, *ExternalPort);
+const FString ConsoleCommand = FString::Printf(TEXT("open %s"), *JoinAddress);
+```
+
+You can also use `ARBITRIUM_PUBLIC_IP` instead of `{RequestId}.pr.edgegap.net` if your connection flow needs a raw IP address.
+
+## Stop Deployments
+
+From the game server, stop the deployment with one of these paths:
+
+- Call `RequestExit` from your normal server shutdown flow. EGIK's shutdown subsystem listens for process exit and calls Edgegap's self-stop endpoint using `ARBITRIUM_DELETE_URL` and `ARBITRIUM_DELETE_TOKEN`.
+- Call `SelfStopDeployment` directly from the dedicated server when the match ends or the server becomes idle.
+
+`SelfStopDeployment` does not need the request ID or access point ID. Edgegap injects the one-time self-stop URL and token into the deployment runtime.
+
+**For security, do not call `DeleteDeployment` directly from the game server.** Use `DeleteDeployment` only from custom backend integrations where an API key is protected outside the game server.
+
+Use `BulkStopDeployments` for trusted backend/admin cleanup flows that stop multiple deployments.

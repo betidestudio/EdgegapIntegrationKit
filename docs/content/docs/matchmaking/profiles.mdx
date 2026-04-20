@@ -1,0 +1,114 @@
+---
+title: Profiles & Attributes
+description: Keep profile strings and attribute JSON in sync with your Matchmaker configuration
+---
+
+<Callout type="info">
+Edgegap Matchmaker is in active development with frequent updates. For the latest rule types, expansion options, and example configurations for competitive, cooperative, and social games, see the [official Edgegap Matchmaking docs](https://docs.edgegap.com/learn/matchmaking) and [Configuration guide](https://docs.edgegap.com/learn/matchmaker-in-depth#configuration).
+</Callout>
+
+## The Golden Rule
+
+`Profile` and `Attributes` in every Unreal ticket/group request **must exactly match** your Matchmaker configuration JSON. A typo in the profile name or a missing attribute key will cause tickets to fail or never match.
+
+## How Profiles Map to Unreal
+
+Each profile in your matchmaker config is an isolated queue. When creating a ticket or group, you pass the profile name as a string:
+
+| Matchmaker Config | Unreal `Profile` Value |
+|---|---|
+| `"profiles": { "simple-example": { ... } }` | `"simple-example"` |
+| `"profiles": { "ranked-2v2": { ... } }` | `"ranked-2v2"` |
+| `"profiles": { "custom-lobby": { ... } }` | `"custom-lobby"` |
+
+## How Rules Map to Attributes
+
+Each rule in your config expects specific attribute keys and types in the ticket:
+
+| Rule Type | Config Key | Ticket Attribute | Type |
+|---|---|---|---|
+| `player_count` | `match_size` | *(no attribute needed)* | — |
+| `latencies` | `beacons` | `"beacons": {"City": ms}` | Object of floats |
+| `number_difference` | e.g. `elo_rating` | `"elo_rating": 1337` | Number |
+| `string_equality` | e.g. `selected_game_mode` | `"selected_game_mode": "TDM"` | String |
+| `intersection` | e.g. `selected_map` | `"selected_map": ["DustII", "Airport"]` | Array of strings |
+
+### Example: Simple Profile
+
+Config:
+```json
+{
+  "profiles": {
+    "simple-example": {
+      "rules": {
+        "initial": {
+          "match_size": { "type": "player_count", "attributes": { "team_count": 1, "min_team_size": 2, "max_team_size": 2 } },
+          "beacons": { "type": "latencies", "attributes": { "difference": 100, "max_latency": 200 } }
+        }
+      }
+    }
+  }
+}
+```
+
+Matching Unreal attributes:
+```json
+{
+  "beacons": { "Montreal": 12.3, "Toronto": 45.6, "Chicago": 87.3 }
+}
+```
+
+### Example: Advanced Profile
+
+Config with `latencies`, `number_difference`, `string_equality`, and `intersection`:
+
+Matching Unreal attributes:
+```json
+{
+  "beacons": { "Montreal": 12.3, "Toronto": 45.6 },
+  "elo_rating": 1337,
+  "selected_game_mode": "quickplay",
+  "selected_map": ["DustII", "Airport", "BankVault"],
+  "backfill_group_size": ["new", "1"]
+}
+```
+
+{/* ![Building attributes JSON in Blueprint to match profile rules](/screenshots/matchmaking-profiles.png) */}
+
+## Blueprint Pattern
+
+In Blueprints, you build the attributes JSON using **Set Field** nodes on a JSON object:
+
+1. Create a JSON object variable.
+2. Use **Set Field** for each attribute: `elo_rating` (float), `selected_game_mode` (string), `beacons` (nested object), `selected_map` (string array).
+3. Call **Get Json String** to convert to the string that `CreateMatchmakingTicket` expects.
+
+## C++ Profile Helper
+
+```cpp
+static FString BuildQuickplayAttributes(const TMap<FString, double>& BeaconLatencies)
+{
+    FString Json = TEXT("{\"beacons\":{");
+    bool bFirst = true;
+    for (const auto& Pair : BeaconLatencies)
+    {
+        if (!bFirst) Json += TEXT(",");
+        Json += FString::Printf(TEXT("\"%s\":%.2f"), *Pair.Key, Pair.Value);
+        bFirst = false;
+    }
+    Json += TEXT("}}");
+    return Json;
+}
+```
+
+## Rule Expansions
+
+Expansions relax rules over time to find matches faster. They're configured in your matchmaker JSON, not in Unreal — your client doesn't need to do anything. Example: after 30s in queue, `elo_rating` difference expands from 50 to 150, and `max_latency` increases from 125 to 250.
+
+## Checklist
+
+- Profile name in Unreal exactly matches config key (case sensitive).
+- All required attribute keys are present.
+- Types match: numbers for `number_difference`, strings for `string_equality`, arrays for `intersection`, object of floats for `latencies`.
+- Beacon city names match what `GetLocationBeacons` returns.
+- `player_count` rule does NOT require any attribute — it's config-only.

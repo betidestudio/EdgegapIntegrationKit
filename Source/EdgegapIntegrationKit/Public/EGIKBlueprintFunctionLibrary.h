@@ -86,8 +86,13 @@ struct FEGIK_AssignmentStruct
     UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Assignment")
     FString PublicIP;
 
+    // Convenience accessor for the "gameport" port (backwards compatible)
     UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Assignment")
     FEGIK_PortStruct GamePort;
+
+    // All ports returned by the assignment, keyed by port name
+    UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Assignment")
+    TMap<FString, FEGIK_PortStruct> Ports;
 
     UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Assignment")
     FEGIK_LocationStruct Location;
@@ -137,45 +142,48 @@ struct FEGIK_AssignmentStruct
     }
 
 private:
-    // Helper function to reset the struct
     void Reset()
     {
         bIsNullOrEmpty = true;
         FQDN = "";
         PublicIP = "";
-        GamePort.InternalPort = 0;
-        GamePort.ExternalPort = 0;
-        GamePort.Protocol = "";
-        Location.City = "";
-        Location.Country = "";
-        Location.Continent = "";
-        Location.AdministrativeDivision = "";
-        Location.Timezone = "";
+        GamePort = FEGIK_PortStruct();
+        Ports.Empty();
+        Location = FEGIK_LocationStruct();
     }
 
-    // Helper function to deserialize JSON into the struct
     void DeserializeFromJson(TSharedPtr<FJsonObject> JsonObject)
     {
         if (!JsonObject.IsValid()) return;
 
-        // Parse the FQDN and Public IP fields
         JsonObject->TryGetStringField(TEXT("fqdn"), FQDN);
         JsonObject->TryGetStringField(TEXT("public_ip"), PublicIP);
 
-        // Navigate to the "ports" object and then "gameport"
+        // Parse all ports from the "ports" object
         const TSharedPtr<FJsonObject>* PortsObject;
         if (JsonObject->TryGetObjectField(TEXT("ports"), PortsObject))
         {
-            const TSharedPtr<FJsonObject>* GamePortObject;
-            if ((*PortsObject)->TryGetObjectField(TEXT("gameport"), GamePortObject))
+            for (const auto& PortEntry : (*PortsObject)->Values)
             {
-                (*GamePortObject)->TryGetNumberField(TEXT("internal"), GamePort.InternalPort);
-                (*GamePortObject)->TryGetNumberField(TEXT("external"), GamePort.ExternalPort);
-                (*GamePortObject)->TryGetStringField(TEXT("protocol"), GamePort.Protocol);
+                const TSharedPtr<FJsonObject>* PortObject;
+                if ((*PortsObject)->TryGetObjectField(PortEntry.Key, PortObject))
+                {
+                    FEGIK_PortStruct Port;
+                    (*PortObject)->TryGetNumberField(TEXT("internal"), Port.InternalPort);
+                    (*PortObject)->TryGetNumberField(TEXT("external"), Port.ExternalPort);
+                    (*PortObject)->TryGetStringField(TEXT("protocol"), Port.Protocol);
+                    Ports.Add(PortEntry.Key, Port);
+
+                    // Set GamePort for backwards compatibility (first port named "gameport", or first port found)
+                    if (PortEntry.Key == TEXT("gameport") || GamePort.InternalPort == 0)
+                    {
+                        GamePort = Port;
+                    }
+                }
             }
         }
 
-        // Navigate to the "location" object
+        // Parse the "location" object
         const TSharedPtr<FJsonObject>* LocationObject;
         if (JsonObject->TryGetObjectField(TEXT("location"), LocationObject))
         {
@@ -206,10 +214,10 @@ struct FEGIK_CreateMatchmakingStruct
 	FString PlayerIp = "";
 
     UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-    FString MatchmakingURL;
+    FString MatchmakingURL = "";
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-	FString AuthToken;
+	FString AuthToken = "";
 };
 
 USTRUCT(BlueprintType)
@@ -228,6 +236,9 @@ struct FEGIK_MatchmakingResponse
 	
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
 	FString TeamId;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
+	FString MatchId;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
 	FString ExpansionStage;
@@ -253,6 +264,7 @@ struct FEGIK_MatchmakingResponse
 		GameProfile = "";
 		GroupId = "";
 		TeamId = "";
+		MatchId = "";
 		ExpansionStage = "";
 		IP = "";
 		Attributes = "";
@@ -277,6 +289,10 @@ struct FEGIK_MatchmakingResponse
 			if(JsonObject->HasField(TEXT("team_id")))
 			{
 				TeamId = JsonObject->GetStringField(TEXT("team_id"));
+			}
+			if(JsonObject->HasField(TEXT("match_id")))
+			{
+				MatchId = JsonObject->GetStringField(TEXT("match_id"));
 			}
 			if(JsonObject->HasField(TEXT("expansion_stage")))
 			{
@@ -428,13 +444,13 @@ struct FEGIK_FiltersStruct
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
 	TEnumAsByte<EEGIK_FilterType> FilterType = EGIK_Any;
 
-	TSharedPtr<FJsonObject> ToJsonObject()
+	TSharedPtr<FJsonObject> ToJsonObject() const
 	{
 		TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 		JsonObject->SetStringField("field", Field);
 
 		TArray<TSharedPtr<FJsonValue>> ValuesArray;
-		for (auto val : Values)
+		for (const auto& val : Values)
 		{
 			ValuesArray.Add(MakeShareable(new FJsonValueString(val)));
 		}
@@ -957,6 +973,21 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit")
 	static FString GetAuthorizationKey();
+
+	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit | Server Browser")
+	static FString GetServerBrowserURL();
+
+	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit | Server Browser")
+	static FString GetServerBrowserServerToken();
+
+	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit | Server Browser")
+	static FString GetServerBrowserClientToken();
+
+	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit | Matchmaking")
+	static FString GetMatchmakingURL();
+
+	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit | Matchmaking")
+	static FString GetMatchmakingAuthToken();
 
 	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit")
 	static void GetEnvironmentVariable(FString Key, FString& Value);

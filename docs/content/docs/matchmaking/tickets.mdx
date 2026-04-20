@@ -1,0 +1,99 @@
+---
+title: Tickets (Deprecated)
+description: Legacy ticket flow retained for existing projects
+---
+
+<Callout type="warn">
+Ticket Blueprint nodes are deprecated for new client matchmaking flows. Use [Group Up](/matchmaking/group-up) for new party, group, and solo matchmaking integrations.
+</Callout>
+
+<Callout type="info">
+Edgegap Matchmaker is in active development with frequent updates. For the latest configuration examples, rule types, and API changes, see the [official Edgegap Matchmaking docs](https://docs.edgegap.com/learn/matchmaking) and [In-Depth Guide](https://docs.edgegap.com/learn/matchmaker-in-depth).
+</Callout>
+
+<Callout type="info">
+**Free tier** shuts down after 3 hours. If tickets go straight to `CANCELLED`, restart your matchmaker from the [Edgegap dashboard](https://app.edgegap.com). Free tier is also limited to 1 deployment at a time.
+</Callout>
+
+## Step 1 - Build Attributes And Create Ticket
+
+1. Build a JSON object with your matchmaking attributes. These must match your [matchmaker profile configuration](/matchmaking/profiles).
+2. For latency-based matching, include `beacons` with measured ping values per region.
+3. Fill `FEGIK_CreateMatchmakingStruct` with `Profile`, `Attributes` JSON, and optionally `PlayerIp`.
+4. Call `CreateMatchmakingTicket`.
+5. On success, save the `TicketId` from the response. You need it for polling and cancellation.
+
+{/* ![Build attributes JSON and create matchmaking ticket](/screenshots/matchmaking-tickets-create.png) */}
+
+### Attributes JSON Format
+
+Your attributes must match the rules in your matchmaker config. Example for a profile with `latencies`, `number_difference`, `string_equality`, and `intersection` rules:
+
+```json
+{
+  "beacons": { "Montreal": 12.3, "Toronto": 45.6 },
+  "elo_rating": 500.0,
+  "selected_game_mode": "BattleRoyale",
+  "selected_map": ["solomap"],
+  "selected_region": ["North America"]
+}
+```
+
+## Step 2 - Poll Status And Connect
+
+After creating a ticket, poll `GetMatchmakingTicket` on a timer until the assignment is available.
+
+1. Set up a looping timer every 3-5 seconds.
+2. Call `GetMatchmakingTicket` with the saved `TicketId`.
+3. Break the response and check `Assignment.IsNullOrEmpty`.
+4. When assignment arrives, read `FQDN` and `GamePort.External` from the `AssignmentStruct`.
+5. Connect using `open {FQDN}:{ExternalPort}` via Execute Console Command.
+
+{/* ![Poll ticket, check assignment, connect using FQDN and Port](/screenshots/matchmaking-tickets-poll.png) */}
+
+### Ticket Status Flow
+
+Your ticket progresses through these statuses:
+
+| Status | Meaning |
+|---|---|
+| `SEARCHING` | Looking for other players matching your rules |
+| `TEAM_FOUND` | Enough players found for your team, looking for opponents |
+| `MATCH_FOUND` | All teams assembled, server deployment starting |
+| `HOST_ASSIGNED` | Server ready; `assignment` contains connection details |
+| `CANCELLED` | Ticket expired or was deleted |
+
+<Callout type="warn">
+**Save the TicketId persistently** (e.g. SaveGame). If your game client crashes, you can resume polling with the same TicketId instead of creating a new ticket.
+</Callout>
+
+## Cancel Queue
+
+Call `DeleteMatchmakingTicket` with the `TicketId` to cancel. Returns `409 Conflict` if the match is already found and a deployment is starting; at that point you can't cancel.
+
+{/* ![Delete matchmaking ticket to cancel queue](/screenshots/matchmaking-tickets-cancel.png) */}
+
+## Error Handling
+
+- `429 Too Many Requests` - rate limited. Retry with exponential backoff.
+- `404 Not Found` - ticket was deleted or reached its removal period. Create a new one.
+- `409 Conflict` - can't delete ticket after match is found.
+
+## C++ Example
+
+```cpp
+#include "EGIK_CreateMatchmakingTicket.h"
+
+FEGIK_CreateMatchmakingStruct Req;
+Req.Profile = TEXT("quickplay");
+Req.Attributes = TEXT("{\"beacons\":{\"Montreal\":12.3,\"Toronto\":45.6}}");
+// Req.MatchmakingURL/AuthToken optional; empty => plugin settings.
+
+auto* Node = UEGIK_CreateMatchmakingTicket::CreateMatchmakingTicket(Req);
+Node->OnSuccess.AddDynamic(this, &UMySubsystem::OnTicketCreated);
+Node->Activate();
+```
+
+## Legacy Group Tickets
+
+`CreateGroupTicket` is deprecated. Use [Group Up](/matchmaking/group-up) for party and group matchmaking flows instead.

@@ -1,0 +1,47 @@
+---
+title: List & Filter
+description: Query deployments with pagination, filters, and sorting
+---
+
+## Goal
+
+Use `ListAllDeployments` with `FEGIK_ListDeploymentsQuery` to power admin/debug views.
+
+{/* ![List and filter deployment query setup](/screenshots/deployment-list-filter.png) */}
+
+## Query Shape
+
+- `Filters[]` (`field`, `operator`, `value/array`)
+- `OrderBy[]` (`field`, `asc|desc`)
+- `Page`, `Limit`
+
+## C++ Example
+
+```cpp
+#include "Deployments/EGIK_ListAllDeployments.h"
+
+FEGIK_ListDeploymentsQuery Query;
+Query.Page = 1;
+Query.Limit = 20;
+
+FEGIK_DeploymentFilter Filter;
+Filter.Field = TEXT("status");
+Filter.Operator = EEGIK_DeploymentFilterOperator::Equal;
+Filter.Value = TEXT("running");
+Query.Filters.Add(Filter);
+
+FEGIK_DeploymentSortOrder Sort;
+Sort.Field = TEXT("created_at");
+Sort.Direction = EEGIK_SortDirection::Descending;
+Query.OrderBy.Add(Sort);
+
+auto* Node = UEGIK_ListAllDeployments::ListAllDeployments(Query);
+Node->OnSuccess.AddDynamic(this, &UMySubsystem::OnDeploymentsListed);
+Node->Activate();
+```
+
+## Use Cases
+
+- In-editor ops dashboard
+- QA tooling
+- Session cleanup jobs

@@ -24,6 +24,10 @@ static FString Content(FString RelativePath, FString Extension)
 	if (BaseDir.IsEmpty())
 	{
 		auto Plugin = IPluginManager::Get().FindPlugin("EdgegapIntegrationKit");
+		if (!Plugin.IsValid())
+		{
+			Plugin = IPluginManager::Get().FindPlugin("UltimateCrossplayIntegrationKit");
+		}
 
 		if (Plugin.IsValid())
 		{
@@ -75,6 +79,7 @@ public:
 
 	void RegisterSettings()
 	{
+#if !WITH_UCIK
 		if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 		{
 			SettingsModule->RegisterSettings("Project", "Game", "Edgegap",
@@ -82,14 +87,17 @@ public:
 				LOCTEXT("RuntimeSettingsDescription", "Deploy into Edgegap"),
 				GetMutableDefault<UEdgegapSettings>());
 		}
+#endif
 	}
 
 	void UnregisterSettings()
 	{
+#if !WITH_UCIK
 		if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 		{
-			SettingsModule->UnregisterSettings("Project", "Plugins", "Edgegap");
+			SettingsModule->UnregisterSettings("Project", "Game", "Edgegap");
 		}
+#endif
 	}
 
 private:

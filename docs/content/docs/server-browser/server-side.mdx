@@ -1,0 +1,121 @@
+---
+title: Server Side
+description: Register and maintain server instances from dedicated servers
+---
+
+Your dedicated server is responsible for announcing itself to the Server Browser, managing player capacity, and staying alive. All server-side calls use the **Server Token** (not the client token).
+
+<Callout type="info">
+**Free tier** shuts down after 3 hours of runtime. If your server browser suddenly stops working during testing, restart the free cluster from the Edgegap dashboard. No credit card required.
+</Callout>
+
+## Prerequisites — Server Browser Configuration
+
+Before any of this works, you need to create a Server Browser configuration in the [Edgegap dashboard](https://app.edgegap.com). This JSON defines which metadata fields are **indexed** for filtering and sorting.
+
+```json
+{
+  "version": "0.0.5",
+  "server_instances": {
+    "expiration_period": "30s",
+    "indices": {
+      "map": "string",
+      "mode": "string",
+      "server_version": "string",
+      "beacon_ip": "string",
+      "beacon_port_udp": "int"
+    }
+  },
+  "server_instance_slots": {
+    "indices": {
+      "team_name": "string",
+      "average_skill": "float"
+    }
+  },
+  "seat_reservations": {
+    "expiration_period": "30s"
+  }
+}
+```
+
+<Callout type="warn">
+Only indexed metadata can be used for filtering and sorting by clients. Non-indexed metadata can still be stored and read, but won't be searchable. Avoid indexing fields you don't need to filter/sort on — it affects performance.
+</Callout>
+
+## Step 1 — Register Server Instance
+
+On startup, read the deployment's environment variables and register with the Server Browser. This makes your server discoverable by clients.
+
+1. Read `ARBITRIUM_REQUEST_ID` from environment variables to get your deployment's request ID.
+2. Build metadata JSON with your server's game parameters (map, mode, version, beacon info, etc.).
+3. Call `SB_CreateServerInstance` with the request ID, metadata, and initial slot configuration.
+
+![Read env vars and create server instance on startup](/screenshots/serverbrowser-server-register.png)
+
+## Step 2 — Create Slots
+
+Slots define team capacity. You need at least one slot per instance for the Server Browser to manage player seats.
+
+1. Call `SB_CreateSlot` with the `RequestId`, a `SlotName` (e.g. "TeamBlue"), and `AvailableSeats`.
+2. Add `MetadataJson` for slot-specific data (team name, skill rating, etc.).
+3. Repeat for additional slots if your game has multiple teams.
+
+![Create a slot with team name and available seats](/screenshots/serverbrowser-server-slot.png)
+
+## Step 3 — Keep Alive
+
+Server instances must send a periodic heartbeat. Missing the heartbeat for **30 seconds** will automatically remove your instance and all pending reservations.
+
+1. Set up a looping timer (every 20 seconds is safe).
+2. On each tick, call `SB_KeepAlive` with the `RequestId`.
+
+![Set Timer by Event looping every 20s calling KeepAlive](/screenshots/serverbrowser-server-keepalive.png)
+
+## Step 4 — Confirm Reservations
+
+When a player connects via netcode, confirm their reservation. This is typically done in your GameMode's `PostLogin` or equivalent player-joined event.
+
+<Callout type="warn">
+**Federated Identity:** Players must provide a unique third-party player ID when calling `ReserveSeats` on the client. The same ID must be passed to the server during connection (e.g. via login payload). `ConfirmReservations` uses this ID to match the connecting player to their reservation.
+</Callout>
+
+1. Call `SB_ConfirmReservations` with the `RequestId` and an array of `UserIds` for the players who just connected.
+2. Break the response to check for accepted, expired, or unknown player IDs.
+3. Decide how to handle each group — allow, kick, or ban.
+4. Call `SB_UpdateSlot` to adjust `AvailableSeats` after confirming.
+
+![Confirm reservations on player connect and check unknown users](/screenshots/serverbrowser-server-confirm.png)
+
+## Step 5 — Handle Player Disconnect
+
+When players leave, you must update slot capacity so new players can reserve those seats.
+
+1. Call `SB_UpdateSlot` with the `RequestId`, `SlotName`, and the new `AvailableSeats` count.
+2. If your game allows reconnection, consider waiting a short period before releasing the seat.
+3. If the server is empty, consider waiting a few minutes before stopping to reduce restarts during short idle periods.
+
+## Shutdown & Cleanup
+
+When your server is shutting down or the match ends:
+
+- Call `SB_DeleteServerInstance` with the `RequestId` to remove from the Server Browser.
+- Use `SB_DeleteSlot` if you need to remove a specific slot mid-match.
+
+## C++ Example (Create Instance)
+
+```cpp
+#include "ServerBrowser/EGIK_SB_CreateServerInstance.h"
+
+FEGIK_SB_CreateServerInstanceRequest Req;
+Req.RequestId = DeploymentRequestId;
+Req.MetadataJson = TEXT("{\"map\":\"Arena01\",\"mode\":\"TDM\"}");
+// Req.Overrides empty => read URL/token from plugin settings.
+
+auto* Node = UEGIK_SB_CreateServerInstance::CreateServerInstance(Req);
+Node->OnSuccess.AddDynamic(this, &UMySubsystem::OnServerInstanceCreated);
+Node->Activate();
+```
+
+## Important
+
+Use **server token** (not client token) for all server-side operations. The server token can be [injected as an app version variable](https://docs.edgegap.com/orchestration/application-and-versions#injected-variables) in your Edgegap dashboard.

@@ -41,10 +41,9 @@ void FAPITokenSettingsCustomization::CustomizeHeader(TSharedRef<IPropertyHandle>
 				return FText::FromString(APITokenStr); })
 																					  .OnTextCommitted_Lambda([this, PropertyChildHandle](const FText &InText, ETextCommit::Type CommitType)
 																											  {
-				if (CommitType == ETextCommit::OnEnter)
+				if (CommitType != ETextCommit::Default)
 				{
-					FString NewAPIKey = InText.ToString();
-
+					const FString NewAPIKey = InText.ToString();
 					PropertyChildHandle->SetValue(NewAPIKey);
 				} })] +
 			 SHorizontalBox::Slot()
@@ -59,7 +58,13 @@ void FAPITokenSettingsCustomization::CustomizeHeader(TSharedRef<IPropertyHandle>
 				FString _CurrentAPITokenStr;
 				PropertyChildHandle->GetValue(_CurrentAPITokenStr);
 
-				return !_CurrentAPITokenStr.IsEmpty(); })
+				if (!_CurrentAPITokenStr.IsEmpty())
+				{
+					return true;
+				}
+
+				const UEdgegapSettings* Settings = GetDefault<UEdgegapSettings>();
+				return Settings && !Settings->AuthorizationKey.IsEmpty(); })
 						  .OnClicked_Lambda([this]()
 											{
 				FEdgegapSettingsDetails::GetInstance()->Request_VerifyToken();

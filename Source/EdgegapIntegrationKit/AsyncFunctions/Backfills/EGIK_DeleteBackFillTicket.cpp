@@ -1,12 +1,8 @@
-﻿// Copyright (c) Betide Studio. All Rights Reserved.
-
+// Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_DeleteBackFillTicket.h"
 
-#include "EGIKBlueprintFunctionLibrary.h"
-
-UEGIK_DeleteBackFillTicket* UEGIK_DeleteBackFillTicket::DeleteBackFillTicket(const FString& backfillId,
-                                                                             const FString& MatchmakingURL, const FString& AuthToken)
+UEGIK_DeleteBackFillTicket* UEGIK_DeleteBackFillTicket::DeleteBackFillTicket(const FString& backfillId, const FString& MatchmakingURL, const FString& AuthToken)
 {
 	UEGIK_DeleteBackFillTicket* Node = NewObject<UEGIK_DeleteBackFillTicket>();
 	Node->Var_BackfillId = backfillId;
@@ -15,45 +11,41 @@ UEGIK_DeleteBackFillTicket* UEGIK_DeleteBackFillTicket::DeleteBackFillTicket(con
 	return Node;
 }
 
-void UEGIK_DeleteBackFillTicket::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest,
-	TSharedPtr<IHttpResponse> HttpResponse, bool bArg)
+FString UEGIK_DeleteBackFillTicket::GetEndpointURL() const
 {
-	FEGIK_ErrorStruct Error;
-	if (HttpResponse.IsValid())
+	FString BaseURL = Var_MatchmakingURL.IsEmpty()
+		? UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
+		: Var_MatchmakingURL;
+	if (BaseURL.EndsWith(TEXT("/")))
 	{
-		const int32 ResponseCode = HttpResponse->GetResponseCode();
-		if (EHttpResponseCodes::IsOk(ResponseCode))
-		{
-			OnSuccess.Broadcast(FEGIK_ErrorStruct());
-		}
-		else if(ResponseCode == 429)
-		{
-			// 429 Too Many Requests - Rate limiting response
-			OnRateLimited.Broadcast(FEGIK_ErrorStruct(429, HttpResponse->GetContentAsString()));
-		}
-		else
-		{
-			OnFailure.Broadcast(FEGIK_ErrorStruct(ResponseCode, HttpResponse->GetContentAsString()));
-		}
+		BaseURL = BaseURL.LeftChop(1);
 	}
-	else
-	{
-		OnFailure.Broadcast(FEGIK_ErrorStruct(0, "Failed to parse JSON"));
-	}
+	return FString::Printf(TEXT("%s/backfills/%s"), *BaseURL, *Var_BackfillId);
 }
 
-void UEGIK_DeleteBackFillTicket::Activate()
+EEGIK_HttpVerb UEGIK_DeleteBackFillTicket::GetHTTPVerb() const
 {
-	Super::Activate();
-	FHttpModule* Http = &FHttpModule::Get();
-	TSharedRef<IHttpRequest> Request = Http->CreateRequest();
-	Request->SetVerb("DELETE");
-	Request->SetURL(Var_MatchmakingURL + "/backfills/" + Var_BackfillId);
-	Request->SetHeader("Content-Type", "application/json");
-	Request->SetHeader("Authorization", Var_AuthToken);
-	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_DeleteBackFillTicket::OnResponseReceived);
-	if(!Request->ProcessRequest())
-	{
-		OnFailure.Broadcast(FEGIK_ErrorStruct(0, "Failed to connect, likely the Matchmaker is down or the URL is incorrect or is not released"));
-	}
+	return EEGIK_HttpVerb::DELETE;
+}
+
+FString UEGIK_DeleteBackFillTicket::GetAuthorizationHeader() const
+{
+	return Var_AuthToken.IsEmpty()
+		? UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
+		: Var_AuthToken;
+}
+
+void UEGIK_DeleteBackFillTicket::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)
+{
+	OnSuccess.Broadcast(FEGIK_ErrorStruct());
+}
+
+void UEGIK_DeleteBackFillTicket::HandleError(int32 ErrorCode, const FString& ErrorMessage)
+{
+	OnFailure.Broadcast(FEGIK_ErrorStruct(ErrorCode, ErrorMessage));
+}
+
+void UEGIK_DeleteBackFillTicket::HandleRateLimited(const FString& ResponseContent)
+{
+	OnRateLimited.Broadcast(FEGIK_ErrorStruct(429, ResponseContent));
 }

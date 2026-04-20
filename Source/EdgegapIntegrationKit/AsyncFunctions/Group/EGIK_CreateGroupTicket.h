@@ -1,12 +1,9 @@
-﻿// Copyright (c) Betide Studio. All Rights Reserved.
+// Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EGIKBlueprintFunctionLibrary.h"
-#include "Interfaces/IHttpRequest.h"
-#include "Interfaces/IHttpResponse.h"
-#include "Kismet/BlueprintAsyncActionBase.h"
+#include "EGIK_AsyncRequestBase.h"
 #include "EGIK_CreateGroupTicket.generated.h"
 
 USTRUCT(BlueprintType)
@@ -30,6 +27,9 @@ struct FEGIK_MemberTicket
 	FString PlayerIp;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Group")
+	FString Profile;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Group")
 	FString Attributes;
 };
 
@@ -46,7 +46,7 @@ struct FEGIK_CreateGroupTicketRequest
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Group")
 	FString MatchmakerUrl;
-	
+
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Group")
 	FString AuthToken;
 };
@@ -55,17 +55,14 @@ struct FEGIK_CreateGroupTicketRequest
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FEGIK_CreateGroupMatchmakingTicketResponse, const TArray<FEGIK_MatchmakingResponse>&, PlayerTickets, const FEGIK_ErrorStruct&, Error);
 
 UCLASS()
-class EDGEGAPINTEGRATIONKIT_API UEGIK_CreateGroupTicket : public UBlueprintAsyncActionBase
+class EDGEGAPINTEGRATIONKIT_API UEGIK_CreateGroupTicket : public UEGIK_AsyncRequestBase
 {
 	GENERATED_BODY()
 
 public:
 
-	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"), Category = "Edgegap Integration Kit | Group")
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", DeprecatedFunction, DeprecationMessage = "Group Tickets are deprecated. Use Group Up endpoints under Edgegap Integration Kit | Group Up for party and group matchmaking flows."), Category = "Edgegap Integration Kit | Group")
 	static UEGIK_CreateGroupTicket* CreateGroupTicket(const FEGIK_CreateGroupTicketRequest& Request);
-
-	void OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest, TSharedPtr<IHttpResponse> HttpResponse, bool bArg);
-	virtual void Activate() override;
 
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Group")
 	FEGIK_CreateGroupMatchmakingTicketResponse OnSuccess;
@@ -76,8 +73,18 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Edgegap Integration Kit | Group")
 	FEGIK_CreateGroupMatchmakingTicketResponse OnRateLimited;
 
+protected:
+	//~ Begin UEGIK_AsyncRequestBase Interface
+	virtual FString GetEndpointURL() const override;
+	virtual EEGIK_HttpVerb GetHTTPVerb() const override;
+	virtual FString GetAuthorizationHeader() const override;
+	virtual TSharedPtr<FJsonObject> BuildRequestBody() const override;
+	virtual void ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject) override;
+	virtual void HandleError(int32 ErrorCode, const FString& ErrorMessage) override;
+	virtual void HandleRateLimited(const FString& ResponseContent) override;
+	virtual FString GetLogCategory() const override { return TEXT("Group"); }
+	//~ End UEGIK_AsyncRequestBase Interface
+
 private:
 	FEGIK_CreateGroupTicketRequest Var_Request;
-	
-	
 };

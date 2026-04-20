@@ -1,0 +1,91 @@
+---
+title: Client Side
+description: Browse server instances, reserve seats, then connect
+---
+
+## Step 1 — List & Display Servers
+
+Use `ListServerInstances` to fetch available servers. Filter and sort so players see the most relevant results first.
+
+1. Call `SB_ListServerInstances` with a `Filter`, `OrderBy`, and `Limit`.
+2. Break the response to get `Items` (the server list) and `Pagination` (cursor for next page).
+3. Loop through `Items` and display each server's metadata in your UI.
+
+![List server instances with filter and display in UI](/screenshots/serverbrowser-client-browse.png)
+
+### Filter & Sort Syntax
+
+Both `Filter` and `OrderBy` are plain strings. Filters can be chained with `and`.
+
+| Metadata Type | Operators | Example |
+|---|---|---|
+| `joinable_seats` | `eq` `ne` `lt` `le` `gt` `ge` | `joinable_seats gt 0` |
+| `string` | `eq` `ne` `lt` `le` `gt` `ge` `contains` | `metadata.map eq 'Arena01'` |
+| `int` / `float` | `eq` `ne` `lt` `le` `gt` `ge` | `metadata.xp_multiplier gt 1.0` |
+| `bool` | `eq` `ne` | `metadata.allows_new_connections eq true` |
+
+**Combined filter example:**
+```
+joinable_seats gt 0 and metadata.mode eq 'TDM' and metadata.server_version ge '1.0.0'
+```
+
+**OrderBy example:** `joinable_seats desc` or `metadata.map asc`
+
+<Callout type="info">
+Only metadata fields defined as **indices** in your Server Browser configuration can be filtered or sorted. See [Server Side prerequisites](/server-browser/server-side#prerequisites--server-browser-configuration).
+</Callout>
+
+### Pagination
+
+Server Browser uses **cursor-based pagination**, not offset-based. To fetch the next page, pass the `Cursor` value from the previous response's `Pagination` into the next `ListServerInstances` call. Leave `Cursor` empty for the first page.
+
+## Step 2 — Save Browsed Session
+
+When a player picks a server from the list, store the selected instance so you can reserve a seat and connect.
+
+1. From `ListServerInstances` response, pick a server (e.g. random or player's choice).
+2. Save the selected `FEGIK_SB_ServerInstance` to a variable for the next step.
+
+![Save selected server instance from browse results](/screenshots/serverbrowser-client-save.png)
+
+## Step 3 — Reserve Seat & Connect
+
+Before connecting, reserve a seat to guarantee capacity. Reservations expire after **30 seconds**, so connect immediately after.
+
+<Callout type="warn">
+**Player Identity:** You must pass a unique third-party player ID in `UserIds`. The same ID must be sent to the dedicated server during connection so it can call `ConfirmReservations` and match the player to their reservation.
+</Callout>
+
+1. Call `SB_ReserveSeats` with the server's `RequestId`, `SlotName`, and an array containing the player's unique ID.
+2. On success, read the server's `FQDN` and `Ports` from the saved instance to build the connect address.
+3. Connect using `FQDN` + `:` + the game port's `External` value.
+4. On failure (409 = slot full), show an error and let the player pick another server.
+
+![Reserve seat with player ID then connect using FQDN and Port](/screenshots/serverbrowser-client-join.png)
+
+## C++ Example (List + Reserve)
+
+```cpp
+#include "ServerBrowser/EGIK_SB_ListServerInstances.h"
+#include "ServerBrowser/EGIK_SB_ReserveSeats.h"
+
+auto* ListNode = UEGIK_SB_ListServerInstances::ListServerInstances(
+    TEXT(""),
+    20,
+    TEXT("joinable_seats gt 0"),
+    TEXT("joinable_seats desc")
+);
+ListNode->OnSuccess.AddDynamic(this, &UMySubsystem::OnServerListReady);
+ListNode->Activate();
+
+// reserve later
+TArray<FString> UserIds = { PlayerId };
+auto* ReserveNode = UEGIK_SB_ReserveSeats::ReserveSeats(RequestId, SlotName, UserIds);
+ReserveNode->OnSuccess.AddDynamic(this, &UMySubsystem::OnSeatReserved);
+ReserveNode->Activate();
+```
+
+## Important
+
+- Reservations are short-lived (30 seconds). Your dedicated server must call `SB_ConfirmReservations` quickly after the player connects — see [Server Side](/server-browser/server-side).
+- The **free tier cluster** shuts down after 3 hours. If listing returns no results during testing, restart the cluster from the [Edgegap dashboard](https://app.edgegap.com).
