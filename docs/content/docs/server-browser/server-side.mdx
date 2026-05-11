@@ -50,28 +50,23 @@ On startup, read the deployment's environment variables and register with the Se
 2. Build metadata JSON with your server's game parameters (map, mode, version, beacon info, etc.).
 3. Call `SB_CreateServerInstance` with the request ID, metadata, and initial slot configuration.
 
+
 ![Read env vars and create server instance on startup](/screenshots/serverbrowser-server-register.png)
 
-## Step 2 — Create Slots
+## Step 2 — Keep Alive
 
-Slots define team capacity. You need at least one slot per instance for the Server Browser to manage player seats.
+Server instances must send a periodic heartbeat. Missing the heartbeat for your configured expiration period will automatically remove your instance and all pending reservations.
 
-1. Call `SB_CreateSlot` with the `RequestId`, a `SlotName` (e.g. "TeamBlue"), and `AvailableSeats`.
-2. Add `MetadataJson` for slot-specific data (team name, skill rating, etc.).
-3. Repeat for additional slots if your game has multiple teams.
-
-![Create a slot with team name and available seats](/screenshots/serverbrowser-server-slot.png)
-
-## Step 3 — Keep Alive
-
-Server instances must send a periodic heartbeat. Missing the heartbeat for **30 seconds** will automatically remove your instance and all pending reservations.
-
-1. Set up a looping timer (every 20 seconds is safe).
+1. Set up a looping timer that fires well before your configured expiration period (for default configurations, try 20s).
 2. On each tick, call `SB_KeepAlive` with the `RequestId`.
+
+<Callout type="info">
+timeout duration can be edited under `server_instances.expiration_period`. If your configuration uses a different value, keep your heartbeat interval comfortably below it.
+</Callout>
 
 ![Set Timer by Event looping every 20s calling KeepAlive](/screenshots/serverbrowser-server-keepalive.png)
 
-## Step 4 — Confirm Reservations
+## Step 3 — Confirm Reservations
 
 When a player connects via netcode, confirm their reservation. This is typically done in your GameMode's `PostLogin` or equivalent player-joined event.
 
@@ -86,13 +81,25 @@ When a player connects via netcode, confirm their reservation. This is typically
 
 ![Confirm reservations on player connect and check unknown users](/screenshots/serverbrowser-server-confirm.png)
 
-## Step 5 — Handle Player Disconnect
+## Step 4 — Handle Player Disconnect
 
 When players leave, you must update slot capacity so new players can reserve those seats.
 
 1. Call `SB_UpdateSlot` with the `RequestId`, `SlotName`, and the new `AvailableSeats` count.
 2. If your game allows reconnection, consider waiting a short period before releasing the seat.
 3. If the server is empty, consider waiting a few minutes before stopping to reduce restarts during short idle periods.
+
+## Step 5 — Advanced Slot Management (Optional)
+
+Use separate slot creation and deletion only if your game needs to add, remove, or reshape slots after the server instance is already registered.
+
+1. Call `SB_CreateSlot` with the `RequestId`, a `SlotName` (e.g. "TeamBlue"), and `AvailableSeats` to add a new slot dynamically.
+2. Call `SB_UpdateSlot` to change capacity on an existing slot.
+3. Call `SB_DeleteSlot` to remove a slot that should no longer exist.
+
+For most projects, the slot list will be defined up front in `SB_CreateServerInstance`.
+
+![Create a slot with team name and available seats](/screenshots/serverbrowser-server-slot.png)
 
 ## Shutdown & Cleanup
 

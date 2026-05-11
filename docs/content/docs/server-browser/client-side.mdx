@@ -50,16 +50,20 @@ When a player picks a server from the list, store the selected instance so you c
 
 ## Step 3 — Reserve Seat & Connect
 
-Before connecting, reserve a seat to guarantee capacity. Reservations expire after **30 seconds**, so connect immediately after.
+Before connecting, reserve a seat to guarantee capacity. Reservations expire when the configured reservation window elapses, so connect immediately after.
 
 <Callout type="warn">
 **Player Identity:** You must pass a unique third-party player ID in `UserIds`. The same ID must be sent to the dedicated server during connection so it can call `ConfirmReservations` and match the player to their reservation.
 </Callout>
 
 1. Call `SB_ReserveSeats` with the server's `RequestId`, `SlotName`, and an array containing the player's unique ID.
-2. On success, read the server's `FQDN` and `Ports` from the saved instance to build the connect address.
-3. Connect using `FQDN` + `:` + the game port's `External` value.
+2. On success, read the desired port's `Link` from the saved instance's `Server` response data.
+3. Connect directly using the `Link` value.
 4. On failure (409 = slot full), show an error and let the player pick another server.
+
+<Callout type="info">
+The common `30s` reservation timeout is just the example shown in the server-side configuration under `seat_reservations.expiration_period`. If your configuration uses a different value, that value controls how long the client has to connect before the reservation expires.
+</Callout>
 
 ![Reserve seat with player ID then connect using FQDN and Port](/screenshots/serverbrowser-client-join.png)
 
@@ -87,5 +91,5 @@ ReserveNode->Activate();
 
 ## Important
 
-- Reservations are short-lived (30 seconds). Your dedicated server must call `SB_ConfirmReservations` quickly after the player connects — see [Server Side](/server-browser/server-side).
+- Reservations are short-lived. Your dedicated server must call `SB_ConfirmReservations` quickly after the player connects — see [Server Side](/server-browser/server-side).
 - The **free tier cluster** shuts down after 3 hours. If listing returns no results during testing, restart the cluster from the [Edgegap dashboard](https://app.edgegap.com).

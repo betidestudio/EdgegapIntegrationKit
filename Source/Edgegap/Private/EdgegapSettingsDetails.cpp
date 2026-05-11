@@ -1737,17 +1737,27 @@ FString FEdgegapSettingsDetails::GenerateDockerIgnoreContent()
 {
 	FString Content;
 	Content += TEXT(".git\n");
+	Content += TEXT(".vs/\n");
+	Content += TEXT(".idea/\n");
+	Content += TEXT(".vscode/\n");
+	Content += TEXT(".DS_Store\n");
 	Content += TEXT("Saved/\n");
 	Content += TEXT("Intermediate/\n");
 	Content += TEXT("DerivedDataCache/\n");
 	Content += TEXT("Binaries/\n");
 	Content += TEXT("Build/\n");
+	Content += TEXT("FileOpenOrder/\n");
+	Content += TEXT("Collections/\n");
+	Content += TEXT("Developers/\n");
 	Content += TEXT("*.sln\n");
 	Content += TEXT("*.xcworkspace\n");
 	Content += TEXT("*.xcodeproj\n");
 	Content += TEXT("*.pdb\n");
+	Content += TEXT("*.VC.db\n");
+	Content += TEXT("*.VC.opendb\n");
 	Content += TEXT("Plugins/*/Intermediate/\n");
 	Content += TEXT("Plugins/*/Binaries/\n");
+	Content += TEXT("Plugins/*/Saved/\n");
 	return Content;
 }
 
