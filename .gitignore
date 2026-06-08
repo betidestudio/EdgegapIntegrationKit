@@ -51,6 +51,10 @@ Plugins/*/Binaries/*
 
 # Builds
 Build/*
+_Package_UE*/
+
+# macOS metadata
+.DS_Store
 
 # Whitelist PakBlacklist-<BuildConfiguration>.txt files
 !Build/*/
