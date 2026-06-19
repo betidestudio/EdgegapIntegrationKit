@@ -9,6 +9,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonReader.h"
 #include "Interfaces/IHttpResponse.h"
+#include "EGIK_JsonKeyCompat.h"
 #include "EGIKBlueprintFunctionLibrary.generated.h"
 
 USTRUCT(BlueprintType)
@@ -172,7 +173,7 @@ private:
                     (*PortObject)->TryGetNumberField(TEXT("internal"), Port.InternalPort);
                     (*PortObject)->TryGetNumberField(TEXT("external"), Port.ExternalPort);
                     (*PortObject)->TryGetStringField(TEXT("protocol"), Port.Protocol);
-                    Ports.Add(PortEntry.Key, Port);
+                    Ports.Add(EGIK_JSONKEY(PortEntry.Key), Port);
 
                     // Set GamePort for backwards compatibility (first port named "gameport", or first port found)
                     if (PortEntry.Key == TEXT("gameport") || GamePort.InternalPort == 0)
@@ -698,7 +699,7 @@ struct FEGIK_DeploymentStatusAndInfoResponse
 				PortData.bTLS_Upgrade = PortObject->GetBoolField(TEXT("tls_upgrade"));
 				PortData.Link = PortObject->GetStringField(TEXT("link"));
 				PortData.Proxy = PortObject->GetIntegerField(TEXT("proxy"));
-				Ports.Add(PortEntry.Key, PortData);
+				Ports.Add(EGIK_JSONKEY(PortEntry.Key), PortData);
 			}
 
 			PublicIP = JsonObject->GetStringField(TEXT("public_ip"));
@@ -945,7 +946,7 @@ struct FEGIK_RelaySessionInfo
 					PortData.Port = PortObject->GetIntegerField(TEXT("port"));
 					PortData.Link = PortObject->GetStringField(TEXT("link"));
 					PortData.Protocol = PortObject->GetStringField(TEXT("protocol"));
-					Relay.Ports.Add(PortEntry.Key, PortData);
+					Relay.Ports.Add(EGIK_JSONKEY(PortEntry.Key), PortData);
 				}
 			}
 		}

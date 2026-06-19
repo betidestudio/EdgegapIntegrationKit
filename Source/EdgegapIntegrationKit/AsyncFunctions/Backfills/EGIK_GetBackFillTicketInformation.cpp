@@ -1,6 +1,7 @@
 // Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_GetBackFillTicketInformation.h"
+#include "EGIK_JsonKeyCompat.h"
 
 UEGIK_GetBackFillTicketInformation* UEGIK_GetBackFillTicketInformation::GetBackFillTicketInformation(const FString& backfillId, const FString& MatchmakingURL, const FString& AuthToken)
 {
@@ -53,7 +54,7 @@ void UEGIK_GetBackFillTicketInformation::ProcessResponse(int32 HttpStatusCode, T
 		TSharedPtr<FJsonObject> TicketsObject = JsonObject->GetObjectField(TEXT("tickets"));
 		for (const auto& TicketPair : TicketsObject->Values)
 		{
-			Response.Tickets.Add(TicketPair.Key, TicketPair.Value->AsObject());
+			Response.Tickets.Add(EGIK_JSONKEY(TicketPair.Key), TicketPair.Value->AsObject());
 		}
 	}
 

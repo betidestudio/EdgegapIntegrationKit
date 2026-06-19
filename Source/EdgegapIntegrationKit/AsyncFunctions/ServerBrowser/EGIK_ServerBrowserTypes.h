@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EGIK_JsonKeyCompat.h"
 #include "EGIK_ServerBrowserTypes.generated.h"
 
 // Forward declarations
@@ -153,7 +154,7 @@ struct FEGIK_SB_Server
 			{
 				for (const auto& Pair : (*PortsObj)->Values)
 				{
-					Ports.Add(Pair.Key, FEGIK_SB_ServerPort(Pair.Value->AsObject()));
+					Ports.Add(EGIK_JSONKEY(Pair.Key), FEGIK_SB_ServerPort(Pair.Value->AsObject()));
 				}
 			}
 

@@ -2,6 +2,7 @@
 
 #include "EGIK_ListAllDeployments.h"
 #include "GenericPlatform/GenericPlatformHttp.h"
+#include "EGIK_JsonKeyCompat.h"
 
 UEGIK_ListAllDeployments* UEGIK_ListAllDeployments::ListAllDeployments(FEGIK_ListDeploymentsQuery Query)
 {
@@ -190,7 +191,7 @@ void UEGIK_ListAllDeployments::ProcessResponse(int32 HttpStatusCode, TSharedPtr<
 					PortObject->TryGetStringField(TEXT("link"), PortData.Link);
 					PortObject->TryGetNumberField(TEXT("proxy"), PortData.Proxy);
 
-					DeploymentData.Ports.Add(PortEntry.Key, PortData);
+					DeploymentData.Ports.Add(EGIK_JSONKEY(PortEntry.Key), PortData);
 				}
 			}
 

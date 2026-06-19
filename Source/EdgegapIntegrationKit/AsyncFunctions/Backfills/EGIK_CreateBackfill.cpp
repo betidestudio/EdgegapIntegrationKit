@@ -1,6 +1,7 @@
 // Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_CreateBackfill.h"
+#include "EGIK_JsonKeyCompat.h"
 
 UEGIK_CreateBackfill* UEGIK_CreateBackfill::CreateBackFillRequest(const FEGIK_CreateBackFillRequest& Request)
 {
@@ -108,7 +109,7 @@ void UEGIK_CreateBackfill::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJso
 		TSharedPtr<FJsonObject> TicketsObject = JsonObject->GetObjectField(TEXT("tickets"));
 		for (const auto& TicketPair : TicketsObject->Values)
 		{
-			Response.Tickets.Add(TicketPair.Key, TicketPair.Value->AsObject());
+			Response.Tickets.Add(EGIK_JSONKEY(TicketPair.Key), TicketPair.Value->AsObject());
 		}
 	}
 
