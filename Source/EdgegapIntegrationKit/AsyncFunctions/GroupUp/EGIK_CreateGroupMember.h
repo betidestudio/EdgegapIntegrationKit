@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "EGIK_AsyncRequestBase.h"
 #include "EGIK_GroupUpTypes.h"
+#include "EGIK_MatchmakingAttributes.h"
 #include "EGIK_CreateGroupMember.generated.h"
 
 USTRUCT(BlueprintType)
@@ -18,7 +19,11 @@ struct FEGIK_CreateGroupMemberRequest
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Group Up")
 	FString Profile;
 
-	/** JSON object string containing profile-specific attributes. */
+	/** Recommended: type-safe attributes that require no JSON syntax. */
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Group Up")
+	FEGIK_MatchmakingAttributes StructuredAttributes;
+
+	/** Advanced/backward-compatible raw JSON object. Do not set together with StructuredAttributes. */
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Group Up")
 	FString Attributes;
 
@@ -61,6 +66,7 @@ protected:
 	virtual FString GetEndpointURL() const override;
 	virtual EEGIK_HttpVerb GetHTTPVerb() const override;
 	virtual FString GetAuthorizationHeader() const override;
+	virtual bool ValidateRequest(FString& OutErrorMessage) const override;
 	virtual TSharedPtr<FJsonObject> BuildRequestBody() const override;
 	virtual void ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject) override;
 	virtual void HandleError(int32 ErrorCode, const FString& ErrorMessage) override;

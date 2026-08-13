@@ -1,6 +1,7 @@
 // Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_CreateGroupTicket.h"
+#include "EGIK_MatchmakingRequestUtils.h"
 
 UEGIK_CreateGroupTicket* UEGIK_CreateGroupTicket::CreateGroupTicket(const FEGIK_CreateGroupTicketRequest& Request)
 {
@@ -11,14 +12,7 @@ UEGIK_CreateGroupTicket* UEGIK_CreateGroupTicket::CreateGroupTicket(const FEGIK_
 
 FString UEGIK_CreateGroupTicket::GetEndpointURL() const
 {
-	FString BaseURL = Var_Request.MatchmakerUrl.IsEmpty()
-		? UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
-		: Var_Request.MatchmakerUrl;
-	if (BaseURL.EndsWith(TEXT("/")))
-	{
-		BaseURL = BaseURL.LeftChop(1);
-	}
-	return BaseURL + TEXT("/group-tickets");
+	return EGIK_MatchmakingRequest::ResolveURL(Var_Request.MatchmakerUrl) + TEXT("/group-tickets");
 }
 
 EEGIK_HttpVerb UEGIK_CreateGroupTicket::GetHTTPVerb() const
@@ -28,9 +22,40 @@ EEGIK_HttpVerb UEGIK_CreateGroupTicket::GetHTTPVerb() const
 
 FString UEGIK_CreateGroupTicket::GetAuthorizationHeader() const
 {
-	return Var_Request.AuthToken.IsEmpty()
-		? UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
-		: Var_Request.AuthToken;
+	return EGIK_MatchmakingRequest::ResolveAuthToken(Var_Request.AuthToken);
+}
+
+bool UEGIK_CreateGroupTicket::ValidateRequest(FString& OutErrorMessage) const
+{
+	if (!EGIK_MatchmakingRequest::ValidateConnection(Var_Request.MatchmakerUrl, Var_Request.AuthToken, OutErrorMessage))
+	{
+		return false;
+	}
+	if (Var_Request.Members.IsEmpty())
+	{
+		OutErrorMessage = TEXT("Members must contain at least one group ticket member.");
+		return false;
+	}
+
+	for (int32 Index = 0; Index < Var_Request.Members.Num(); ++Index)
+	{
+		const FEGIK_MemberTicket& Member = Var_Request.Members[Index];
+		const FString EffectiveProfile = Member.Profile.IsEmpty() ? Var_Request.ProfileId : Member.Profile;
+		FString MemberError;
+		if (!EGIK_MatchmakingRequest::ValidateProfile(EffectiveProfile, MemberError))
+		{
+			OutErrorMessage = FString::Printf(TEXT("Members[%d]: %s"), Index, *MemberError);
+			return false;
+		}
+
+		TSharedPtr<FJsonObject> AttributesObject;
+		if (!EGIK_MatchmakingAttributeUtils::Build(Member.StructuredAttributes, Member.Attributes, AttributesObject, MemberError))
+		{
+			OutErrorMessage = FString::Printf(TEXT("Members[%d]: %s"), Index, *MemberError);
+			return false;
+		}
+	}
+	return true;
 }
 
 TSharedPtr<FJsonObject> UEGIK_CreateGroupTicket::BuildRequestBody() const
@@ -51,14 +76,10 @@ TSharedPtr<FJsonObject> UEGIK_CreateGroupTicket::BuildRequestBody() const
 			MemberObject->SetStringField(TEXT("profile"), EffectiveProfile);
 		}
 		TSharedPtr<FJsonObject> AttributesJsonObject;
-		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Member.Attributes);
-		if (FJsonSerializer::Deserialize(Reader, AttributesJsonObject) && AttributesJsonObject.IsValid())
+		FString AttributesError;
+		if (EGIK_MatchmakingAttributeUtils::Build(Member.StructuredAttributes, Member.Attributes, AttributesJsonObject, AttributesError))
 		{
 			MemberObject->SetObjectField(TEXT("attributes"), AttributesJsonObject);
-		}
-		else
-		{
-			UE_LOG(LogEdgegap, Error, TEXT("[Group] Failed to parse attributes JSON string."));
 		}
 		MembersArray.Add(MakeShareable(new FJsonValueObject(MemberObject)));
 	}

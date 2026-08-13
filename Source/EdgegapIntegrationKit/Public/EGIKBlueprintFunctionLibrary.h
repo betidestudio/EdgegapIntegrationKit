@@ -10,6 +10,7 @@
 #include "Serialization/JsonReader.h"
 #include "Interfaces/IHttpResponse.h"
 #include "EGIK_JsonKeyCompat.h"
+#include "EGIK_MatchmakingAttributes.h"
 #include "EGIKBlueprintFunctionLibrary.generated.h"
 
 USTRUCT(BlueprintType)
@@ -205,6 +206,11 @@ struct FEGIK_CreateMatchmakingStruct
     UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
     FString Profile;
 
+	/** Recommended: type-safe attributes that require no JSON syntax. */
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
+	FEGIK_MatchmakingAttributes StructuredAttributes;
+
+	/** Advanced/backward-compatible raw JSON object. Do not set together with StructuredAttributes. */
     UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
     FString Attributes;
 

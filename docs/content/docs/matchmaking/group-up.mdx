@@ -4,7 +4,7 @@ description: Recommended client-safe group matchmaking flow for parties
 ---
 
 <Callout type="info">
-Edgegap Matchmaker is in active development with frequent updates. For the latest configuration examples, group lifecycle details, and API changes, see the [official Edgegap Matchmaking docs](https://docs.edgegap.com/learn/matchmaking) and [Group Up guide](https://docs.edgegap.com/learn/matchmaker-in-depth#group-up).
+Edgegap Matchmaker is in active development with frequent updates. For the latest configuration examples, group lifecycle details, and API changes, see the [official Edgegap Matchmaking docs](https://docs.edgegap.com/learn/matchmaking) and [Group Up guide](https://docs.edgegap.com/learn/matchmaking/matchmaker-in-depth#group-up).
 </Callout>
 
 ## Why Group Up
@@ -18,7 +18,7 @@ Group Up ensures friends join the same team and server. It replaces legacy ticke
 
 ## Step 1 - Leader Creates Group
 
-1. Call `CreateGroup` with `Profile`, `Attributes` (beacon latencies, game preferences), `PlayerIp`, and `bIsReady = false`.
+1. Call `CreateGroup` with `Profile`, `StructuredAttributes` (beacon latencies, game preferences), `PlayerIp`, and `bIsReady = false`.
 2. From `OnSuccess`, save `GroupId` and `MemberId` from the response.
 3. Share the `GroupId` with party members through your lobby system.
 
@@ -26,7 +26,7 @@ Group Up ensures friends join the same team and server. It replaces legacy ticke
 
 ## Step 2 - Members Join And Ready Up
 
-1. Each member calls `CreateGroupMember` with the `GroupId`, their own `Profile`, `Attributes`, `PlayerIp`, and `bIsReady = false`.
+1. Each member calls `CreateGroupMember` with the `GroupId`, their own `Profile`, `StructuredAttributes`, `PlayerIp`, and `bIsReady = false`.
 2. When ready, each player, including the leader, calls `UpdateGroupMember` with `bIsReady = true`.
 3. Matchmaking starts automatically once all members are ready.
 
@@ -62,7 +62,8 @@ Group size is validated against your profile's `max_team_size`. New members will
 
 FEGIK_CreateGroupRequest Req;
 Req.Profile = TEXT("ranked-2v2");
-Req.Attributes = TEXT("{\"beacons\":{\"Montreal\":15.2}}");
+Req.StructuredAttributes.Values.Add(
+    UEGIK_MatchmakingAttributeLibrary::MakeBeaconLatenciesAttribute({{TEXT("Montreal"), 15.2}}));
 Req.bIsReady = false;
 // Req.MatchmakingURL/AuthToken optional; leave empty to use plugin settings.
 
@@ -88,6 +89,10 @@ Node->Activate();
 
 ## Notes
 
+- Prefer `StructuredAttributes`: it supports string, number, boolean, string-array/intersection, and beacon-latency values without handwritten JSON.
+- The existing raw `Attributes` JSON field remains available for compatibility and unusual nested values. Set only one of `StructuredAttributes` or `Attributes`.
+- Requests are validated locally before sending. Empty profile/IDs, invalid URLs, missing tokens, duplicate structured keys, and malformed JSON go directly to `OnFailure` with `ErrorCode = 0` and a readable message.
+- Edgegap HTTP errors are unpacked into readable messages on the failure/rate-limit delegates and in `LogEdgegap`, including field paths returned by the API.
 - URL/token fields are optional per request; empty means plugin settings/environment fallback.
 - Group member status follows the matchmaker lifecycle: `SEARCHING`, `TEAM_FOUND`, `MATCH_FOUND`, then `HOST_ASSIGNED`.
 - Backfilling is a server-side operation using `CreateBackfill`.

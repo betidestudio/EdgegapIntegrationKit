@@ -4,12 +4,12 @@ description: Keep profile strings and attribute JSON in sync with your Matchmake
 ---
 
 <Callout type="info">
-Edgegap Matchmaker is in active development with frequent updates. For the latest rule types, expansion options, and example configurations for competitive, cooperative, and social games, see the [official Edgegap Matchmaking docs](https://docs.edgegap.com/learn/matchmaking) and [Configuration guide](https://docs.edgegap.com/learn/matchmaker-in-depth#configuration).
+Edgegap Matchmaker is in active development with frequent updates. For the latest rule types, expansion options, and example configurations for competitive, cooperative, and social games, see the [official Edgegap Matchmaking docs](https://docs.edgegap.com/learn/matchmaking) and [Configuration guide](https://docs.edgegap.com/learn/matchmaking/matchmaker-in-depth#configuration).
 </Callout>
 
 ## The Golden Rule
 
-`Profile` and `Attributes` in every Unreal ticket/group request **must exactly match** your Matchmaker configuration JSON. A typo in the profile name or a missing attribute key will cause tickets to fail or never match.
+`Profile` and the attributes in every Unreal ticket/group request **must exactly match** your Matchmaker configuration JSON. A typo in the profile name or a missing attribute key will cause tickets to fail or never match.
 
 ## How Profiles Map to Unreal
 
@@ -77,28 +77,30 @@ Matching Unreal attributes:
 
 ## Blueprint Pattern
 
-In Blueprints, you build the attributes JSON using **Set Field** nodes on a JSON object:
+Use the typed **Make Matchmaking ... Attribute** nodes so Blueprints do not need to construct or escape JSON:
 
-1. Create a JSON object variable.
-2. Use **Set Field** for each attribute: `elo_rating` (float), `selected_game_mode` (string), `beacons` (nested object), `selected_map` (string array).
-3. Call **Get Json String** to convert to the string that `CreateMatchmakingTicket` expects.
+1. Use **Make Matchmaking Number Attribute** for values such as `elo_rating`.
+2. Use **Make Matchmaking String Attribute** for values such as `selected_game_mode`.
+3. Use **Make Matchmaking String Array Attribute** for intersection rules such as `selected_map`.
+4. Use **Make Matchmaking Beacon Latencies Attribute** for the beacon-name-to-latency map.
+5. Add the results to `StructuredAttributes.Values` on `CreateGroup` or `CreateGroupMember`.
 
-## C++ Profile Helper
+Raw `Attributes` JSON is still supported for backward compatibility and uncommon nested structures. Do not populate both forms on one request; EGIK rejects that locally instead of choosing one silently.
+
+EGIK also rejects duplicate or blank attribute names, empty intersection arrays, invalid beacon maps, and non-finite numbers locally. Edgegap still performs the authoritative profile-specific checks because only the running Matchmaker knows which keys and types its configuration requires.
+
+## C++ Typed Attributes
 
 ```cpp
-static FString BuildQuickplayAttributes(const TMap<FString, double>& BeaconLatencies)
-{
-    FString Json = TEXT("{\"beacons\":{");
-    bool bFirst = true;
-    for (const auto& Pair : BeaconLatencies)
-    {
-        if (!bFirst) Json += TEXT(",");
-        Json += FString::Printf(TEXT("\"%s\":%.2f"), *Pair.Key, Pair.Value);
-        bFirst = false;
-    }
-    Json += TEXT("}}");
-    return Json;
-}
+FEGIK_CreateGroupRequest Req;
+Req.Profile = TEXT("quickplay");
+Req.StructuredAttributes.Values.Add(
+    UEGIK_MatchmakingAttributeLibrary::MakeNumberAttribute(TEXT("elo_rating"), 1337));
+Req.StructuredAttributes.Values.Add(
+    UEGIK_MatchmakingAttributeLibrary::MakeStringAttribute(TEXT("selected_game_mode"), TEXT("quickplay")));
+Req.StructuredAttributes.Values.Add(
+    UEGIK_MatchmakingAttributeLibrary::MakeStringArrayAttribute(
+        TEXT("selected_map"), {TEXT("DustII"), TEXT("Airport")}));
 ```
 
 ## Rule Expansions

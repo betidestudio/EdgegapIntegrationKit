@@ -36,5 +36,6 @@ description: Fast fixes for the most common Unreal + EGIK integration failures
 ## Debug Tips
 
 - Log every request ID and member/ticket ID.
-- Keep one centralized formatter for profile attribute JSON.
+- Prefer typed `StructuredAttributes` over hand-authored JSON. EGIK validates these before sending.
+- Local validation failures use `ErrorCode = 0`; HTTP/API failures preserve the HTTP status code and unpack Edgegap's structured field errors into `ErrorMessage`.
 - Test each flow first with minimal payload, then add optional fields.

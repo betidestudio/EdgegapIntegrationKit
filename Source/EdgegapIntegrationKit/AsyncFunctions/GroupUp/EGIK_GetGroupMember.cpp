@@ -1,28 +1,7 @@
 // Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_GetGroupMember.h"
-
-namespace EGIK_GroupUp_GetGroupMember
-{
-	static FString ResolveMatchmakingURL(const FString& OverrideURL)
-	{
-		FString BaseURL = OverrideURL.IsEmpty()
-			? UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
-			: OverrideURL;
-		if (BaseURL.EndsWith(TEXT("/")))
-		{
-			BaseURL = BaseURL.LeftChop(1);
-		}
-		return BaseURL;
-	}
-
-	static FString ResolveAuthToken(const FString& OverrideToken)
-	{
-		return OverrideToken.IsEmpty()
-			? UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
-			: OverrideToken;
-	}
-}
+#include "EGIK_MatchmakingRequestUtils.h"
 
 UEGIK_GetGroupMember* UEGIK_GetGroupMember::GetGroupMember(const FEGIK_GetGroupMemberRequest& Request)
 {
@@ -34,7 +13,7 @@ UEGIK_GetGroupMember* UEGIK_GetGroupMember::GetGroupMember(const FEGIK_GetGroupM
 FString UEGIK_GetGroupMember::GetEndpointURL() const
 {
 	return FString::Printf(TEXT("%s/groups/%s/members/%s"),
-		*EGIK_GroupUp_GetGroupMember::ResolveMatchmakingURL(Var_Request.MatchmakingURL),
+		*EGIK_MatchmakingRequest::ResolveURL(Var_Request.MatchmakingURL),
 		*Var_Request.GroupId,
 		*Var_Request.MemberId);
 }
@@ -46,7 +25,14 @@ EEGIK_HttpVerb UEGIK_GetGroupMember::GetHTTPVerb() const
 
 FString UEGIK_GetGroupMember::GetAuthorizationHeader() const
 {
-	return EGIK_GroupUp_GetGroupMember::ResolveAuthToken(Var_Request.AuthToken);
+	return EGIK_MatchmakingRequest::ResolveAuthToken(Var_Request.AuthToken);
+}
+
+bool UEGIK_GetGroupMember::ValidateRequest(FString& OutErrorMessage) const
+{
+	return EGIK_MatchmakingRequest::ValidateConnection(Var_Request.MatchmakingURL, Var_Request.AuthToken, OutErrorMessage)
+		&& EGIK_MatchmakingRequest::ValidateResourceId(TEXT("GroupId"), Var_Request.GroupId, OutErrorMessage)
+		&& EGIK_MatchmakingRequest::ValidateResourceId(TEXT("MemberId"), Var_Request.MemberId, OutErrorMessage);
 }
 
 void UEGIK_GetGroupMember::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)

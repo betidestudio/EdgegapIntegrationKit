@@ -1,29 +1,7 @@
 // Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_DeleteGroup.h"
-#include "EGIKBlueprintFunctionLibrary.h"
-
-namespace EGIK_GroupUp_DeleteGroup
-{
-	static FString ResolveMatchmakingURL(const FString& OverrideURL)
-	{
-		FString BaseURL = OverrideURL.IsEmpty()
-			? UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
-			: OverrideURL;
-		if (BaseURL.EndsWith(TEXT("/")))
-		{
-			BaseURL = BaseURL.LeftChop(1);
-		}
-		return BaseURL;
-	}
-
-	static FString ResolveAuthToken(const FString& OverrideToken)
-	{
-		return OverrideToken.IsEmpty()
-			? UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
-			: OverrideToken;
-	}
-}
+#include "EGIK_MatchmakingRequestUtils.h"
 
 UEGIK_DeleteGroup* UEGIK_DeleteGroup::DeleteGroup(const FEGIK_DeleteGroupRequest& Request)
 {
@@ -35,7 +13,7 @@ UEGIK_DeleteGroup* UEGIK_DeleteGroup::DeleteGroup(const FEGIK_DeleteGroupRequest
 FString UEGIK_DeleteGroup::GetEndpointURL() const
 {
 	return FString::Printf(TEXT("%s/groups/%s"),
-		*EGIK_GroupUp_DeleteGroup::ResolveMatchmakingURL(Var_Request.MatchmakingURL),
+		*EGIK_MatchmakingRequest::ResolveURL(Var_Request.MatchmakingURL),
 		*Var_Request.GroupId);
 }
 
@@ -46,7 +24,13 @@ EEGIK_HttpVerb UEGIK_DeleteGroup::GetHTTPVerb() const
 
 FString UEGIK_DeleteGroup::GetAuthorizationHeader() const
 {
-	return EGIK_GroupUp_DeleteGroup::ResolveAuthToken(Var_Request.AuthToken);
+	return EGIK_MatchmakingRequest::ResolveAuthToken(Var_Request.AuthToken);
+}
+
+bool UEGIK_DeleteGroup::ValidateRequest(FString& OutErrorMessage) const
+{
+	return EGIK_MatchmakingRequest::ValidateConnection(Var_Request.MatchmakingURL, Var_Request.AuthToken, OutErrorMessage)
+		&& EGIK_MatchmakingRequest::ValidateResourceId(TEXT("GroupId"), Var_Request.GroupId, OutErrorMessage);
 }
 
 void UEGIK_DeleteGroup::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)

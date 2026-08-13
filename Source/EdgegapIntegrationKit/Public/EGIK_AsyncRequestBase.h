@@ -74,6 +74,12 @@ protected:
 	/** Build the request body JSON. Return nullptr for requests without a body */
 	virtual TSharedPtr<FJsonObject> BuildRequestBody() const { return nullptr; }
 
+	/**
+	 * Validate request inputs before creating or sending an HTTP request.
+	 * Return false and populate OutErrorMessage to fail locally through HandleError.
+	 */
+	virtual bool ValidateRequest(FString& OutErrorMessage) const { return true; }
+
 	/** Handle rate limited (429) responses. Override if your endpoint may return 429 */
 	virtual void HandleRateLimited(const FString& ResponseContent) { HandleError(429, ResponseContent); }
 
@@ -101,6 +107,9 @@ protected:
 
 	/** Parse JSON string to object, returns nullptr on failure */
 	static TSharedPtr<FJsonObject> ParseJsonResponse(const FString& JsonString);
+
+	/** Convert a JSON API error response into a concise, user-facing message. */
+	static FString FormatErrorResponse(int32 HttpStatusCode, const FString& ResponseContent);
 
 	/** Create a JSON array from a string array */
 	static TArray<TSharedPtr<FJsonValue>> StringArrayToJsonArray(const TArray<FString>& StringArray);

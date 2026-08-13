@@ -1,28 +1,7 @@
 // Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_CreateGroup.h"
-
-namespace EGIK_GroupUp_CreateGroup
-{
-	static FString ResolveMatchmakingURL(const FString& OverrideURL)
-	{
-		FString BaseURL = OverrideURL.IsEmpty()
-			? UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
-			: OverrideURL;
-		if (BaseURL.EndsWith(TEXT("/")))
-		{
-			BaseURL = BaseURL.LeftChop(1);
-		}
-		return BaseURL;
-	}
-
-	static FString ResolveAuthToken(const FString& OverrideToken)
-	{
-		return OverrideToken.IsEmpty()
-			? UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
-			: OverrideToken;
-	}
-}
+#include "EGIK_MatchmakingRequestUtils.h"
 
 UEGIK_CreateGroup* UEGIK_CreateGroup::CreateGroup(const FEGIK_CreateGroupRequest& Request)
 {
@@ -33,7 +12,7 @@ UEGIK_CreateGroup* UEGIK_CreateGroup::CreateGroup(const FEGIK_CreateGroupRequest
 
 FString UEGIK_CreateGroup::GetEndpointURL() const
 {
-	return EGIK_GroupUp_CreateGroup::ResolveMatchmakingURL(Var_Request.MatchmakingURL) + TEXT("/groups");
+	return EGIK_MatchmakingRequest::ResolveURL(Var_Request.MatchmakingURL) + TEXT("/groups");
 }
 
 EEGIK_HttpVerb UEGIK_CreateGroup::GetHTTPVerb() const
@@ -43,7 +22,23 @@ EEGIK_HttpVerb UEGIK_CreateGroup::GetHTTPVerb() const
 
 FString UEGIK_CreateGroup::GetAuthorizationHeader() const
 {
-	return EGIK_GroupUp_CreateGroup::ResolveAuthToken(Var_Request.AuthToken);
+	return EGIK_MatchmakingRequest::ResolveAuthToken(Var_Request.AuthToken);
+}
+
+bool UEGIK_CreateGroup::ValidateRequest(FString& OutErrorMessage) const
+{
+	if (!EGIK_MatchmakingRequest::ValidateConnection(Var_Request.MatchmakingURL, Var_Request.AuthToken, OutErrorMessage)
+		|| !EGIK_MatchmakingRequest::ValidateProfile(Var_Request.Profile, OutErrorMessage))
+	{
+		return false;
+	}
+
+	TSharedPtr<FJsonObject> AttributesObject;
+	return EGIK_MatchmakingAttributeUtils::Build(
+		Var_Request.StructuredAttributes,
+		Var_Request.Attributes,
+		AttributesObject,
+		OutErrorMessage);
 }
 
 TSharedPtr<FJsonObject> UEGIK_CreateGroup::BuildRequestBody() const
@@ -57,18 +52,11 @@ TSharedPtr<FJsonObject> UEGIK_CreateGroup::BuildRequestBody() const
 		JsonObject->SetStringField(TEXT("player_ip"), Var_Request.PlayerIp);
 	}
 
-	if (!Var_Request.Attributes.IsEmpty())
+	TSharedPtr<FJsonObject> AttributesObject;
+	FString AttributesError;
+	if (EGIK_MatchmakingAttributeUtils::Build(Var_Request.StructuredAttributes, Var_Request.Attributes, AttributesObject, AttributesError))
 	{
-		TSharedPtr<FJsonObject> AttributesObject;
-		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Var_Request.Attributes);
-		if (FJsonSerializer::Deserialize(Reader, AttributesObject) && AttributesObject.IsValid())
-		{
-			JsonObject->SetObjectField(TEXT("attributes"), AttributesObject);
-		}
-		else
-		{
-			LogError(TEXT("Failed to parse Attributes JSON."));
-		}
+		JsonObject->SetObjectField(TEXT("attributes"), AttributesObject);
 	}
 
 	return JsonObject;
@@ -82,7 +70,14 @@ void UEGIK_CreateGroup::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonOb
 		return;
 	}
 
-	OnSuccess.Broadcast(FEGIK_GroupUpMemberResponse(JsonObject), FEGIK_ErrorStruct());
+	const FEGIK_GroupUpMemberResponse Response(JsonObject);
+	if (Response.GroupId.IsEmpty() || Response.MemberId.IsEmpty())
+	{
+		HandleError(0, TEXT("Edgegap returned a successful Create Group response without the required group_id or member_id."));
+		return;
+	}
+
+	OnSuccess.Broadcast(Response, FEGIK_ErrorStruct());
 }
 
 void UEGIK_CreateGroup::HandleError(int32 ErrorCode, const FString& ErrorMessage)

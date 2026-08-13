@@ -1,6 +1,7 @@
 // Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_CreateMatchmakingTicket.h"
+#include "EGIK_MatchmakingRequestUtils.h"
 
 UEGIK_CreateMatchmakingTicket* UEGIK_CreateMatchmakingTicket::CreateMatchmakingTicket(const FEGIK_CreateMatchmakingStruct& MatchmakingStruct)
 {
@@ -11,14 +12,7 @@ UEGIK_CreateMatchmakingTicket* UEGIK_CreateMatchmakingTicket::CreateMatchmakingT
 
 FString UEGIK_CreateMatchmakingTicket::GetEndpointURL() const
 {
-	FString BaseURL = Var_MatchmakingStruct.MatchmakingURL.IsEmpty()
-		? UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
-		: Var_MatchmakingStruct.MatchmakingURL;
-	if (BaseURL.EndsWith(TEXT("/")))
-	{
-		BaseURL = BaseURL.LeftChop(1);
-	}
-	return BaseURL + TEXT("/tickets");
+	return EGIK_MatchmakingRequest::ResolveURL(Var_MatchmakingStruct.MatchmakingURL) + TEXT("/tickets");
 }
 
 EEGIK_HttpVerb UEGIK_CreateMatchmakingTicket::GetHTTPVerb() const
@@ -28,9 +22,7 @@ EEGIK_HttpVerb UEGIK_CreateMatchmakingTicket::GetHTTPVerb() const
 
 FString UEGIK_CreateMatchmakingTicket::GetAuthorizationHeader() const
 {
-	return Var_MatchmakingStruct.AuthToken.IsEmpty()
-		? UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
-		: Var_MatchmakingStruct.AuthToken;
+	return EGIK_MatchmakingRequest::ResolveAuthToken(Var_MatchmakingStruct.AuthToken);
 }
 
 TMap<FString, FString> UEGIK_CreateMatchmakingTicket::GetAdditionalHeaders() const
@@ -47,21 +39,36 @@ TMap<FString, FString> UEGIK_CreateMatchmakingTicket::GetAdditionalHeaders() con
 	return Headers;
 }
 
+bool UEGIK_CreateMatchmakingTicket::ValidateRequest(FString& OutErrorMessage) const
+{
+	if (!EGIK_MatchmakingRequest::ValidateConnection(Var_MatchmakingStruct.MatchmakingURL, Var_MatchmakingStruct.AuthToken, OutErrorMessage)
+		|| !EGIK_MatchmakingRequest::ValidateProfile(Var_MatchmakingStruct.Profile, OutErrorMessage))
+	{
+		return false;
+	}
+
+	TSharedPtr<FJsonObject> AttributesObject;
+	return EGIK_MatchmakingAttributeUtils::Build(
+		Var_MatchmakingStruct.StructuredAttributes,
+		Var_MatchmakingStruct.Attributes,
+		AttributesObject,
+		OutErrorMessage);
+}
+
 TSharedPtr<FJsonObject> UEGIK_CreateMatchmakingTicket::BuildRequestBody() const
 {
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 	JsonObject->SetStringField(TEXT("profile"), Var_MatchmakingStruct.Profile);
 
-	// Parse attributes JSON string
 	TSharedPtr<FJsonObject> AttributesJsonObject;
-	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Var_MatchmakingStruct.Attributes);
-	if (FJsonSerializer::Deserialize(Reader, AttributesJsonObject) && AttributesJsonObject.IsValid())
+	FString AttributesError;
+	if (EGIK_MatchmakingAttributeUtils::Build(
+		Var_MatchmakingStruct.StructuredAttributes,
+		Var_MatchmakingStruct.Attributes,
+		AttributesJsonObject,
+		AttributesError))
 	{
 		JsonObject->SetObjectField(TEXT("attributes"), AttributesJsonObject);
-	}
-	else
-	{
-		UE_LOG(LogEdgegap, Error, TEXT("[Matchmaking] Failed to parse attributes JSON string."));
 	}
 
 	return JsonObject;

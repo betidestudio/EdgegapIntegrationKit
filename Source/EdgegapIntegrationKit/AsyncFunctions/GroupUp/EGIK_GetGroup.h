@@ -48,6 +48,7 @@ protected:
 	virtual FString GetEndpointURL() const override;
 	virtual EEGIK_HttpVerb GetHTTPVerb() const override;
 	virtual FString GetAuthorizationHeader() const override;
+	virtual bool ValidateRequest(FString& OutErrorMessage) const override;
 	virtual void ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject) override;
 	virtual void HandleError(int32 ErrorCode, const FString& ErrorMessage) override;
 	virtual void HandleRateLimited(const FString& ResponseContent) override;

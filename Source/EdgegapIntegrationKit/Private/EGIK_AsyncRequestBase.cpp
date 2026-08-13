@@ -4,6 +4,145 @@
 
 DEFINE_LOG_CATEGORY(LogEdgegap);
 
+namespace EGIK_AsyncRequest
+{
+	static FString JsonScalarToString(const TSharedPtr<FJsonValue>& Value)
+	{
+		if (!Value.IsValid())
+		{
+			return TEXT("");
+		}
+
+		switch (Value->Type)
+		{
+		case EJson::String:
+			return Value->AsString();
+		case EJson::Number:
+			return FString::SanitizeFloat(Value->AsNumber());
+		case EJson::Boolean:
+			return Value->AsBool() ? TEXT("true") : TEXT("false");
+		case EJson::Null:
+			return TEXT("null");
+		default:
+			return TEXT("");
+		}
+	}
+
+	static FString FormatLocation(const TArray<TSharedPtr<FJsonValue>>& Location)
+	{
+		TArray<FString> Segments;
+		for (const TSharedPtr<FJsonValue>& Segment : Location)
+		{
+			const FString SegmentText = JsonScalarToString(Segment);
+			if (!SegmentText.IsEmpty()
+				&& !SegmentText.Equals(TEXT("body"), ESearchCase::IgnoreCase)
+				&& !SegmentText.Equals(TEXT("query"), ESearchCase::IgnoreCase)
+				&& !SegmentText.Equals(TEXT("path"), ESearchCase::IgnoreCase))
+			{
+				Segments.Add(SegmentText);
+			}
+		}
+		return FString::Join(Segments, TEXT("."));
+	}
+
+	static void AddUniqueMessage(TArray<FString>& Messages, const FString& Message)
+	{
+		FString CleanMessage = Message;
+		CleanMessage.TrimStartAndEndInline();
+		if (!CleanMessage.IsEmpty())
+		{
+			Messages.AddUnique(CleanMessage);
+		}
+	}
+
+	static void CollectErrorMessages(const TSharedPtr<FJsonValue>& Value, TArray<FString>& Messages, int32 Depth = 0)
+	{
+		if (!Value.IsValid() || Depth > 6)
+		{
+			return;
+		}
+
+		if (Value->Type == EJson::String)
+		{
+			AddUniqueMessage(Messages, Value->AsString());
+			return;
+		}
+
+		if (Value->Type == EJson::Array)
+		{
+			for (const TSharedPtr<FJsonValue>& Item : Value->AsArray())
+			{
+				CollectErrorMessages(Item, Messages, Depth + 1);
+			}
+			return;
+		}
+
+		if (Value->Type != EJson::Object)
+		{
+			return;
+		}
+
+		const TSharedPtr<FJsonObject> Object = Value->AsObject();
+		if (!Object.IsValid())
+		{
+			return;
+		}
+
+		FString Message;
+		for (const TCHAR* MessageKey : { TEXT("message"), TEXT("msg"), TEXT("detail"), TEXT("error"), TEXT("title") })
+		{
+			if (Object->TryGetStringField(MessageKey, Message) && !Message.IsEmpty())
+			{
+				break;
+			}
+		}
+
+		FString Location;
+		const TArray<TSharedPtr<FJsonValue>>* LocationValues = nullptr;
+		if (Object->TryGetArrayField(TEXT("loc"), LocationValues) && LocationValues)
+		{
+			Location = FormatLocation(*LocationValues);
+		}
+		else
+		{
+			Object->TryGetStringField(TEXT("field"), Location);
+		}
+
+		if (!Message.IsEmpty())
+		{
+			AddUniqueMessage(Messages, Location.IsEmpty() ? Message : FString::Printf(TEXT("%s: %s"), *Location, *Message));
+		}
+
+		for (const TCHAR* NestedKey : { TEXT("detail"), TEXT("details"), TEXT("error"), TEXT("errors") })
+		{
+			const TSharedPtr<FJsonValue> NestedValue = Object->TryGetField(NestedKey);
+			if (NestedValue.IsValid() && NestedValue->Type != EJson::String)
+			{
+				CollectErrorMessages(NestedValue, Messages, Depth + 1);
+			}
+		}
+	}
+
+	static FString GetStatusDescription(int32 StatusCode)
+	{
+		switch (StatusCode)
+		{
+		case 400: return TEXT("Bad Request");
+		case 401: return TEXT("Unauthorized - check the authorization credential");
+		case 403: return TEXT("Forbidden - the credential does not permit this request");
+		case 404: return TEXT("Not Found - check the URL and resource IDs");
+		case 409: return TEXT("Conflict - the resource may have advanced to a state that no longer allows this operation");
+		case 422: return TEXT("Validation Failed");
+		case 429: return TEXT("Too Many Requests - retry with backoff");
+		case 500: return TEXT("Edgegap Internal Server Error");
+		case 502: return TEXT("Bad Gateway");
+		case 503: return TEXT("Service Unavailable");
+		case 504: return TEXT("Gateway Timeout");
+		default: return TEXT("HTTP request failed");
+		}
+	}
+}
+
 void UEGIK_AsyncRequestBase::Activate()
 {
 	Super::Activate();
@@ -17,6 +156,16 @@ FString UEGIK_AsyncRequestBase::GetAuthorizationHeader() const
 
 void UEGIK_AsyncRequestBase::ExecuteRequest()
 {
+	FString ValidationError;
+	if (!ValidateRequest(ValidationError))
+	{
+		const FString ErrorMessage = FString::Printf(TEXT("Request was not sent: %s"), *ValidationError);
+		LogError(ErrorMessage);
+		HandleError(0, ErrorMessage);
+		FinishRequest();
+		return;
+	}
+
 	FHttpModule* Http = &FHttpModule::Get();
 	ActiveRequest = Http->CreateRequest();
 
@@ -85,8 +234,9 @@ void UEGIK_AsyncRequestBase::OnHttpResponseReceived(TSharedPtr<IHttpRequest> Htt
 	// Handle rate limiting
 	if (ResponseCode == 429)
 	{
-		LogWarning(TEXT("Rate limited (429 Too Many Requests)"));
-		HandleRateLimited(ResponseContent);
+		const FString ErrorMessage = FormatErrorResponse(ResponseCode, ResponseContent);
+		LogWarning(FString::Printf(TEXT("HTTP 429: %s"), *ErrorMessage));
+		HandleRateLimited(ErrorMessage);
 		FinishRequest();
 		return;
 	}
@@ -112,8 +262,9 @@ void UEGIK_AsyncRequestBase::OnHttpResponseReceived(TSharedPtr<IHttpRequest> Htt
 	}
 
 	// Handle error responses
-	LogError(FString::Printf(TEXT("HTTP Error %d: %s"), ResponseCode, *ResponseContent));
-	HandleError(ResponseCode, ResponseContent);
+	const FString ErrorMessage = FormatErrorResponse(ResponseCode, ResponseContent);
+	LogError(FString::Printf(TEXT("HTTP %d: %s"), ResponseCode, *ErrorMessage));
+	HandleError(ResponseCode, ErrorMessage);
 	FinishRequest();
 }
 
@@ -172,6 +323,34 @@ TSharedPtr<FJsonObject> UEGIK_AsyncRequestBase::ParseJsonResponse(const FString&
 	}
 
 	return nullptr;
+}
+
+FString UEGIK_AsyncRequestBase::FormatErrorResponse(int32 HttpStatusCode, const FString& ResponseContent)
+{
+	const FString StatusDescription = EGIK_AsyncRequest::GetStatusDescription(HttpStatusCode);
+	FString TrimmedContent = ResponseContent;
+	TrimmedContent.TrimStartAndEndInline();
+
+	if (TrimmedContent.IsEmpty())
+	{
+		return StatusDescription;
+	}
+
+	TSharedPtr<FJsonValue> RootValue;
+	const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(TrimmedContent);
+	if (!FJsonSerializer::Deserialize(Reader, RootValue) || !RootValue.IsValid())
+	{
+		return FString::Printf(TEXT("%s: %s"), *StatusDescription, *TrimmedContent);
+	}
+
+	TArray<FString> Messages;
+	EGIK_AsyncRequest::CollectErrorMessages(RootValue, Messages);
+	if (Messages.IsEmpty())
+	{
+		return FString::Printf(TEXT("%s: %s"), *StatusDescription, *TrimmedContent);
+	}
+
+	return FString::Printf(TEXT("%s: %s"), *StatusDescription, *FString::Join(Messages, TEXT("; ")));
 }
 
 TArray<TSharedPtr<FJsonValue>> UEGIK_AsyncRequestBase::StringArrayToJsonArray(const TArray<FString>& StringArray)
