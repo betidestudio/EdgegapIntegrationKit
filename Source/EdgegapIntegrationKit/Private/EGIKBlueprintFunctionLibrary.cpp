@@ -193,12 +193,16 @@ void UEGIKBlueprintFunctionLibrary::GetEnvironmentVariable(FString Key, FString&
 	Value = FPlatformMisc::GetEnvironmentVariable(*Key);
 }
 
-bool UEGIKBlueprintFunctionLibrary::GetGroupPlayerMapping(const FString& GroupID, TArray<FString>& PlayerIDs)
+bool UEGIKBlueprintFunctionLibrary::GetGroupTicketMapping(const FString& GroupID, TArray<FString>& TicketIDs)
 {
-	// Look for group-to-player mapping in environment variables
-	// Format is expected to be a JSON object mapping group IDs to player ID arrays
+	// Current matchmakers inject a JSON object mapping group IDs to ticket ID arrays.
 	FString GroupMappingJson;
-	GetEnvironmentVariable("MM_GROUP_MAPPING", GroupMappingJson);
+	GetEnvironmentVariable(TEXT("MM_GROUPS"), GroupMappingJson);
+	if (GroupMappingJson.IsEmpty())
+	{
+		// Compatibility with deployments created against the older helper contract.
+		GetEnvironmentVariable(TEXT("MM_GROUP_MAPPING"), GroupMappingJson);
+	}
 
 	if (GroupMappingJson.IsEmpty())
 	{
@@ -220,28 +224,36 @@ bool UEGIKBlueprintFunctionLibrary::GetGroupPlayerMapping(const FString& GroupID
 	}
 
 	// Get the player IDs array for this group
-	const TArray<TSharedPtr<FJsonValue>>* PlayerIDsArray;
-	if (!GroupMapping->TryGetArrayField(GroupID, PlayerIDsArray))
+	const TArray<TSharedPtr<FJsonValue>>* TicketIDsArray;
+	if (!GroupMapping->TryGetArrayField(GroupID, TicketIDsArray))
 	{
 		return false;
 	}
 
-	// Convert to string array
-	PlayerIDs.Empty();
-	for (const TSharedPtr<FJsonValue>& Value : *PlayerIDsArray)
+	TicketIDs.Empty();
+	for (const TSharedPtr<FJsonValue>& Value : *TicketIDsArray)
 	{
 		if (Value->Type == EJson::String)
 		{
-			PlayerIDs.Add(Value->AsString());
+			TicketIDs.Add(Value->AsString());
 		}
 	}
 
-	return PlayerIDs.Num() > 0;
+	return TicketIDs.Num() > 0;
+}
+
+bool UEGIKBlueprintFunctionLibrary::GetGroupPlayerMapping(const FString& GroupID, TArray<FString>& PlayerIDs)
+{
+	return GetGroupTicketMapping(GroupID, PlayerIDs);
 }
 
 bool UEGIKBlueprintFunctionLibrary::GetExpansionStage(FString& ExpansionStage)
 {
-	GetEnvironmentVariable("MM_EXPANSION_STAGE", ExpansionStage);
+	GetEnvironmentVariable(TEXT("MM_EXPANSION"), ExpansionStage);
+	if (ExpansionStage.IsEmpty())
+	{
+		GetEnvironmentVariable(TEXT("MM_EXPANSION_STAGE"), ExpansionStage);
+	}
 	return !ExpansionStage.IsEmpty();
 }
 

@@ -214,9 +214,11 @@ struct FEGIK_CreateMatchmakingStruct
     UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
     FString Attributes;
 
-    UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-    FString RealIp = "";
+	/** Legacy proxy header value. Prefer PlayerIp, which is serialized as player_ip in the request body. */
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking", meta = (DeprecatedProperty, DeprecationMessage = "Use PlayerIp. RealIp is retained only for X-Real-Ip proxy compatibility."))
+	FString RealIp = "";
 
+	/** Optional public player IP for server-to-server calls. Serialized as JSON field player_ip. */
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
 	FString PlayerIp = "";
 
@@ -317,12 +319,12 @@ struct FEGIK_MatchmakingResponse
 			{
 				FDateTime::ParseIso8601(*JsonObject->GetStringField(TEXT("created_at")), CreatedAt);
 			}
-			if(JsonObject->HasField(TEXT("assignment")))
+			if (JsonObject->HasTypedField<EJson::Object>(TEXT("assignment")))
 			{
-				TSharedPtr<FJsonObject> AssignmentJson = JsonObject->GetObjectField(TEXT("assignment"));
-				if (AssignmentJson.IsValid())
+				const TSharedPtr<FJsonObject>* AssignmentJson = nullptr;
+				if (JsonObject->TryGetObjectField(TEXT("assignment"), AssignmentJson) && AssignmentJson)
 				{
-					Assignment = FEGIK_AssignmentStruct(AssignmentJson);
+					Assignment = FEGIK_AssignmentStruct(*AssignmentJson);
 				}
 			}
 			if (JsonObject->HasField(TEXT("attributes")))
@@ -1000,16 +1002,19 @@ public:
 	static void GetEnvironmentVariable(FString Key, FString& Value);
 
 	/**
-	 * Get player group mapping from environment variables
-	 * @param GroupID - The group ID to get player mapping for
-	 * @param PlayerIDs - Array of player IDs in the group
-	 * @return True if group ID was found and mapping was retrieved
+	 * Get the ticket IDs assigned to a matchmaking group from MM_GROUPS.
+	 * Falls back to the pre-3.x MM_GROUP_MAPPING name for existing deployments.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit")
+	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit | Matchmaking | Server")
+	static bool GetGroupTicketMapping(const FString& GroupID, TArray<FString>& TicketIDs);
+
+	/** Legacy alias. MM_GROUPS contains ticket IDs, not arbitrary player IDs. */
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "Use Get Group Ticket Mapping. Current matchmakers inject MM_GROUPS and its values are ticket IDs."), Category = "Edgegap Integration Kit | Matchmaking | Server")
 	static bool GetGroupPlayerMapping(const FString& GroupID, TArray<FString>& PlayerIDs);
 
 	/**
-	 * Get the expansion stage from environment variables (MM_EXPANSION_STAGE)
+	 * Get the expansion stage from MM_EXPANSION.
+	 * Falls back to the legacy MM_EXPANSION_STAGE name.
 	 * @param ExpansionStage - The expansion stage (e.g. "initial", "15", "30")
 	 * @return True if the expansion stage was found
 	 */

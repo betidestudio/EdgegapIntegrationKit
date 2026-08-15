@@ -58,9 +58,11 @@ Runtime information:
 | `ARBITRIUM_CONTEXT_TOKEN` | Runtime helper | Authorization token for `ARBITRIUM_CONTEXT_URL` |
 | `ARBITRIUM_DEPLOYMENT_LOCATION` | Runtime helper | JSON location payload for the deployment |
 | `ARBITRIUM_DEPLOYMENT_TAGS` | Runtime helper | Comma-delimited deployment tags |
-| `MM_GROUP_MAPPING` | Matchmaking server helpers | Group-to-player mapping JSON |
-| `MM_EXPANSION_STAGE` | Matchmaking server helpers | Active matchmaker expansion stage |
+| `MM_GROUPS` | Matchmaking server helpers | Group-to-ticket mapping JSON |
+| `MM_EXPANSION` | Matchmaking server helpers | Active matchmaker expansion stage |
 | `MM_MATCH_PROFILE` | Matchmaking server helpers | Active match profile |
+
+`GetGroupTicketMapping` and `GetExpansionStage` also recognize the legacy `MM_GROUP_MAPPING` and `MM_EXPANSION_STAGE` names so older deployments keep working.
 
 Shutdown variables:
 

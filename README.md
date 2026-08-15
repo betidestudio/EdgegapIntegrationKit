@@ -28,7 +28,27 @@ Here're some of the project's best features:
 
 <h2>📝 Changelog</h2>
 
-### Version 1.7 (Latest) - 2025-04-13
+### Version 2.0 Beta (Latest) - 2026-08-15
+
+#### Matchmaking Improvements:
+- Added type-safe Blueprint matchmaking attributes for strings, numbers, booleans, intersection arrays, and beacon latency maps while retaining raw JSON compatibility
+- Added local validation for matchmaking URLs, authorization tokens, profiles, resource IDs, group members, and structured attributes
+- Standardized Matchmaker, Group Up, Group Ticket, and Backfill URL/auth resolution and structured API error reporting
+- Added per-attempt timeouts and bounded retries for network failures, rate limits, and transient server errors with exponential jittered backoff and `Retry-After` support
+- Updated ticket creation to serialize the supported `player_ip` JSON field and deprecated the legacy `RealIp` input
+- Updated server environment helpers to use `MM_GROUPS` and `MM_EXPANSION`, with fallbacks for legacy variable names
+
+#### Backfill Fixes:
+- Fixed `CreateBackfill` silently omitting attribute overrides and malformed ticket JSON
+- Added strict validation for deployment assignment details, ticket payloads, and reserved assignment fields
+- Hardened Create/Get Backfill response parsing for omitted, null, and incorrectly typed JSON fields
+- Standardized Backfill create, get, and delete connection handling
+
+#### Compatibility and Documentation:
+- Added Unreal Engine 5.8-compatible JSON map-key handling while preserving UE 5.7 and earlier behavior
+- Updated Matchmaking, Group Up, deployment environment, and troubleshooting documentation
+
+### Version 1.7 - 2025-04-13
 
 #### Breaking Changes:
 - Updated to support Edgegap API v2.1.0 changes

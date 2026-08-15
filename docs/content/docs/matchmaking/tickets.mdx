@@ -19,7 +19,7 @@ Edgegap Matchmaker is in active development with frequent updates. For the lates
 
 1. Build a JSON object with your matchmaking attributes. These must match your [matchmaker profile configuration](/matchmaking/profiles).
 2. For latency-based matching, include `beacons` with measured ping values per region.
-3. Fill `FEGIK_CreateMatchmakingStruct` with `Profile`, `Attributes` JSON, and optionally `PlayerIp`.
+3. Fill `FEGIK_CreateMatchmakingStruct` with `Profile`, `Attributes` JSON, and optionally `PlayerIp`. The plugin sends `PlayerIp` as the API's JSON `player_ip` field.
 4. Call `CreateMatchmakingTicket`.
 5. On success, save the `TicketId` from the response. You need it for polling and cancellation.
 
@@ -75,7 +75,8 @@ Call `DeleteMatchmakingTicket` with the `TicketId` to cancel. Returns `409 Confl
 
 ## Error Handling
 
-- `429 Too Many Requests` - rate limited. Retry with exponential backoff.
+- `429 Too Many Requests` - the shared request layer retries up to three times with exponential jittered backoff and honors numeric `Retry-After` values. `OnRateLimited` fires only after retries are exhausted.
+- `5xx` or network failure - retried with the same bounded policy before `OnFailure` fires.
 - `404 Not Found` - ticket was deleted or reached its removal period. Create a new one.
 - `409 Conflict` - can't delete ticket after match is found.
 

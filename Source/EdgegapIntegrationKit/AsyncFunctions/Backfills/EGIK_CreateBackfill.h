@@ -21,10 +21,11 @@ struct FEGIK_CreateBackFillRequest
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Backfill")
 	TMap<FString, FString> Tickets;
 
+	/** Optional JSON object merged into top-level attributes. The reserved assignment key is rejected. */
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Backfill")
 	FString AttributesOverride;
 
-	/** Full assignment details in JSON format, required by new API */
+	/** Full deployment assignment JSON (fqdn, public_ip, ports, and location). */
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Backfill")
 	FString AssignmentDetails;
 
@@ -91,6 +92,7 @@ protected:
 	virtual FString GetEndpointURL() const override;
 	virtual EEGIK_HttpVerb GetHTTPVerb() const override;
 	virtual FString GetAuthorizationHeader() const override;
+	virtual bool ValidateRequest(FString& OutErrorMessage) const override;
 	virtual TSharedPtr<FJsonObject> BuildRequestBody() const override;
 	virtual void ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject) override;
 	virtual void HandleError(int32 ErrorCode, const FString& ErrorMessage) override;

@@ -1,6 +1,7 @@
 // Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_DeleteBackFillTicket.h"
+#include "EGIK_MatchmakingRequestUtils.h"
 
 UEGIK_DeleteBackFillTicket* UEGIK_DeleteBackFillTicket::DeleteBackFillTicket(const FString& backfillId, const FString& MatchmakingURL, const FString& AuthToken)
 {
@@ -13,14 +14,10 @@ UEGIK_DeleteBackFillTicket* UEGIK_DeleteBackFillTicket::DeleteBackFillTicket(con
 
 FString UEGIK_DeleteBackFillTicket::GetEndpointURL() const
 {
-	FString BaseURL = Var_MatchmakingURL.IsEmpty()
-		? UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
-		: Var_MatchmakingURL;
-	if (BaseURL.EndsWith(TEXT("/")))
-	{
-		BaseURL = BaseURL.LeftChop(1);
-	}
-	return FString::Printf(TEXT("%s/backfills/%s"), *BaseURL, *Var_BackfillId);
+	return FString::Printf(
+		TEXT("%s/backfills/%s"),
+		*EGIK_MatchmakingRequest::ResolveURL(Var_MatchmakingURL),
+		*Var_BackfillId);
 }
 
 EEGIK_HttpVerb UEGIK_DeleteBackFillTicket::GetHTTPVerb() const
@@ -30,9 +27,13 @@ EEGIK_HttpVerb UEGIK_DeleteBackFillTicket::GetHTTPVerb() const
 
 FString UEGIK_DeleteBackFillTicket::GetAuthorizationHeader() const
 {
-	return Var_AuthToken.IsEmpty()
-		? UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
-		: Var_AuthToken;
+	return EGIK_MatchmakingRequest::ResolveAuthToken(Var_AuthToken);
+}
+
+bool UEGIK_DeleteBackFillTicket::ValidateRequest(FString& OutErrorMessage) const
+{
+	return EGIK_MatchmakingRequest::ValidateConnection(Var_MatchmakingURL, Var_AuthToken, OutErrorMessage)
+		&& EGIK_MatchmakingRequest::ValidateResourceId(TEXT("BackfillId"), Var_BackfillId, OutErrorMessage);
 }
 
 void UEGIK_DeleteBackFillTicket::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)

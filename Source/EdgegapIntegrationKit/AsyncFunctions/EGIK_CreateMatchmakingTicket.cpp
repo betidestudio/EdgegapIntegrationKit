@@ -32,10 +32,6 @@ TMap<FString, FString> UEGIK_CreateMatchmakingTicket::GetAdditionalHeaders() con
 	{
 		Headers.Add(TEXT("X-Real-Ip"), Var_MatchmakingStruct.RealIp);
 	}
-	if (!Var_MatchmakingStruct.PlayerIp.IsEmpty())
-	{
-		Headers.Add(TEXT("Player-Ip"), Var_MatchmakingStruct.PlayerIp);
-	}
 	return Headers;
 }
 
@@ -59,6 +55,13 @@ TSharedPtr<FJsonObject> UEGIK_CreateMatchmakingTicket::BuildRequestBody() const
 {
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 	JsonObject->SetStringField(TEXT("profile"), Var_MatchmakingStruct.Profile);
+	const FString EffectivePlayerIp = Var_MatchmakingStruct.PlayerIp.IsEmpty()
+		? Var_MatchmakingStruct.RealIp
+		: Var_MatchmakingStruct.PlayerIp;
+	if (!EffectivePlayerIp.IsEmpty())
+	{
+		JsonObject->SetStringField(TEXT("player_ip"), EffectivePlayerIp);
+	}
 
 	TSharedPtr<FJsonObject> AttributesJsonObject;
 	FString AttributesError;

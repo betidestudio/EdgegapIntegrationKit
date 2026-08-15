@@ -2,6 +2,7 @@
 
 #include "EGIK_GetBackFillTicketInformation.h"
 #include "EGIK_JsonKeyCompat.h"
+#include "EGIK_MatchmakingRequestUtils.h"
 
 UEGIK_GetBackFillTicketInformation* UEGIK_GetBackFillTicketInformation::GetBackFillTicketInformation(const FString& backfillId, const FString& MatchmakingURL, const FString& AuthToken)
 {
@@ -14,14 +15,10 @@ UEGIK_GetBackFillTicketInformation* UEGIK_GetBackFillTicketInformation::GetBackF
 
 FString UEGIK_GetBackFillTicketInformation::GetEndpointURL() const
 {
-	FString BaseURL = Var_MatchmakingURL.IsEmpty()
-		? UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
-		: Var_MatchmakingURL;
-	if (BaseURL.EndsWith(TEXT("/")))
-	{
-		BaseURL = BaseURL.LeftChop(1);
-	}
-	return FString::Printf(TEXT("%s/backfills/%s"), *BaseURL, *Var_BackfillId);
+	return FString::Printf(
+		TEXT("%s/backfills/%s"),
+		*EGIK_MatchmakingRequest::ResolveURL(Var_MatchmakingURL),
+		*Var_BackfillId);
 }
 
 EEGIK_HttpVerb UEGIK_GetBackFillTicketInformation::GetHTTPVerb() const
@@ -31,9 +28,13 @@ EEGIK_HttpVerb UEGIK_GetBackFillTicketInformation::GetHTTPVerb() const
 
 FString UEGIK_GetBackFillTicketInformation::GetAuthorizationHeader() const
 {
-	return Var_AuthToken.IsEmpty()
-		? UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
-		: Var_AuthToken;
+	return EGIK_MatchmakingRequest::ResolveAuthToken(Var_AuthToken);
+}
+
+bool UEGIK_GetBackFillTicketInformation::ValidateRequest(FString& OutErrorMessage) const
+{
+	return EGIK_MatchmakingRequest::ValidateConnection(Var_MatchmakingURL, Var_AuthToken, OutErrorMessage)
+		&& EGIK_MatchmakingRequest::ValidateResourceId(TEXT("BackfillId"), Var_BackfillId, OutErrorMessage);
 }
 
 void UEGIK_GetBackFillTicketInformation::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)
@@ -45,32 +46,48 @@ void UEGIK_GetBackFillTicketInformation::ProcessResponse(int32 HttpStatusCode, T
 	}
 
 	FEGIK_GetBackFillTicketInformationResponse Response;
-	Response.Id = JsonObject->GetStringField(TEXT("id"));
-	Response.Profile = JsonObject->GetStringField(TEXT("profile"));
-	Response.Status = JsonObject->GetStringField(TEXT("status"));
-
-	if (JsonObject->HasField(TEXT("tickets")))
+	if (!JsonObject->TryGetStringField(TEXT("id"), Response.Id)
+		|| !JsonObject->TryGetStringField(TEXT("profile"), Response.Profile)
+		|| !JsonObject->TryGetStringField(TEXT("status"), Response.Status))
 	{
-		TSharedPtr<FJsonObject> TicketsObject = JsonObject->GetObjectField(TEXT("tickets"));
-		for (const auto& TicketPair : TicketsObject->Values)
+		HandleError(0, TEXT("Edgegap returned a successful Get Backfill response without required id, profile, or status fields."));
+		return;
+	}
+
+	const TSharedPtr<FJsonObject>* TicketsObject = nullptr;
+	if (JsonObject->TryGetObjectField(TEXT("tickets"), TicketsObject) && TicketsObject && (*TicketsObject).IsValid())
+	{
+		for (const TPair<FString, TSharedPtr<FJsonValue>>& TicketPair : (*TicketsObject)->Values)
 		{
-			Response.Tickets.Add(EGIK_JSONKEY(TicketPair.Key), TicketPair.Value->AsObject());
+			if (!TicketPair.Value.IsValid() || TicketPair.Value->Type != EJson::Object)
+			{
+				HandleError(0, FString::Printf(TEXT("Get Backfill response ticket '%s' was not a JSON object."), *TicketPair.Key));
+				return;
+			}
+			const TSharedPtr<FJsonObject> TicketObject = TicketPair.Value->AsObject();
+			if (!TicketObject.IsValid())
+			{
+				HandleError(0, FString::Printf(TEXT("Get Backfill response ticket '%s' was not a JSON object."), *TicketPair.Key));
+				return;
+			}
+			Response.Tickets.Add(EGIK_JSONKEY(TicketPair.Key), FEGIK_MatchmakingResponse(TicketObject));
 		}
 	}
 
-	if (JsonObject->HasTypedField<EJson::Object>(TEXT("assigned_ticket")))
+	const TSharedPtr<FJsonObject>* AssignedTicketObject = nullptr;
+	if (JsonObject->TryGetObjectField(TEXT("assigned_ticket"), AssignedTicketObject) && AssignedTicketObject && (*AssignedTicketObject).IsValid())
 	{
-		Response.AssignedTicket = JsonObject->GetObjectField(TEXT("assigned_ticket"));
+		Response.AssignedTicket = FEGIK_MatchmakingResponse(*AssignedTicketObject);
 	}
 
 	// Parse assignment details from attributes.assignment
-	const TSharedPtr<FJsonObject>* AttributesObject;
-	if (JsonObject->TryGetObjectField(TEXT("attributes"), AttributesObject))
+	const TSharedPtr<FJsonObject>* AttributesObject = nullptr;
+	if (JsonObject->TryGetObjectField(TEXT("attributes"), AttributesObject) && AttributesObject && (*AttributesObject).IsValid())
 	{
-		const TSharedPtr<FJsonObject>* AssignmentObject;
+		const TSharedPtr<FJsonObject>* AssignmentObject = nullptr;
 		if ((*AttributesObject)->HasTypedField<EJson::Object>(TEXT("assignment")))
 		{
-			if ((*AttributesObject)->TryGetObjectField(TEXT("assignment"), AssignmentObject))
+			if ((*AttributesObject)->TryGetObjectField(TEXT("assignment"), AssignmentObject) && AssignmentObject && (*AssignmentObject).IsValid())
 			{
 				// Store raw JSON string for flexible handling of variable structures
 				FString AssignmentJsonString;

@@ -8,6 +8,7 @@
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
+#include "Containers/Ticker.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonReader.h"
@@ -40,6 +41,7 @@ enum class EEGIK_HttpVerb : uint8
  * - GetAuthorizationHeader(): Custom auth (defaults to main API key)
  * - BuildRequestBody(): For POST/PUT/PATCH requests
  * - HandleRateLimited(): For endpoints that may return 429
+ * - Retry policy getters: To customize timeout/backoff for a specific endpoint
  */
 UCLASS(Abstract)
 class EDGEGAPINTEGRATIONKIT_API UEGIK_AsyncRequestBase : public UBlueprintAsyncActionBase
@@ -86,6 +88,24 @@ protected:
 	/** Return additional headers to include in the request */
 	virtual TMap<FString, FString> GetAdditionalHeaders() const { return TMap<FString, FString>(); }
 
+	/** Maximum number of retries after the initial request. */
+	virtual int32 GetMaxRetryAttempts() const { return 3; }
+
+	/** Timeout for each individual HTTP attempt. */
+	virtual float GetRequestTimeoutSeconds() const { return 10.0f; }
+
+	/** Initial delay used for exponential retry backoff. */
+	virtual float GetInitialRetryDelaySeconds() const { return 1.0f; }
+
+	/** Upper bound for the exponential portion of retry backoff. */
+	virtual float GetMaxRetryDelaySeconds() const { return 10.0f; }
+
+	/** Maximum random jitter added to a retry delay. */
+	virtual float GetRetryJitterSeconds() const { return 0.25f; }
+
+	/** Network failures, 429 responses, and transient 5xx responses are retried by default. */
+	virtual bool IsRetryableResponse(int32 ResponseCode, bool bConnectedSuccessfully) const;
+
 	//~ End Optional Overrides
 
 	//~ Begin Helper Methods
@@ -98,6 +118,15 @@ protected:
 
 	/** Mark this async action as complete and ready for garbage collection */
 	void FinishRequest();
+
+	/** Schedule another attempt when the retry policy allows it. */
+	bool TryScheduleRetry(int32 ResponseCode, const FString& ErrorMessage, const TSharedPtr<IHttpResponse>& HttpResponse, bool bConnectedSuccessfully);
+
+	/** Core ticker callback used to execute a delayed retry without requiring a World. */
+	bool HandleRetryTicker(float DeltaTime);
+
+	/** Calculate exponential jittered delay, respecting numeric Retry-After when present. */
+	float CalculateRetryDelaySeconds(const TSharedPtr<IHttpResponse>& HttpResponse) const;
 
 	/** Convert HTTP verb enum to string */
 	static FString HttpVerbToString(EEGIK_HttpVerb Verb);
@@ -134,4 +163,9 @@ protected:
 private:
 	/** The active HTTP request */
 	TSharedPtr<IHttpRequest> ActiveRequest;
+
+	FTSTicker::FDelegateHandle RetryTickerHandle;
+	int32 RetryAttemptCount = 0;
+	bool bAddedToRootForRequest = false;
+	bool bRequestFinished = false;
 };

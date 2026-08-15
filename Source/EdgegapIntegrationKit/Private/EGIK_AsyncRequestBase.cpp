@@ -146,6 +146,11 @@ namespace EGIK_AsyncRequest
 void UEGIK_AsyncRequestBase::Activate()
 {
 	Super::Activate();
+	if (!IsRooted())
+	{
+		AddToRoot();
+		bAddedToRootForRequest = true;
+	}
 	ExecuteRequest();
 }
 
@@ -174,6 +179,7 @@ void UEGIK_AsyncRequestBase::ExecuteRequest()
 
 	ActiveRequest->SetVerb(Verb);
 	ActiveRequest->SetURL(Url);
+	ActiveRequest->SetTimeout(GetRequestTimeoutSeconds());
 	ActiveRequest->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
 	ActiveRequest->SetHeader(TEXT("Authorization"), GetAuthorizationHeader());
 
@@ -206,18 +212,28 @@ void UEGIK_AsyncRequestBase::ExecuteRequest()
 
 	if (!ActiveRequest->ProcessRequest())
 	{
-		LogError(TEXT("Failed to process HTTP request"));
-		HandleError(0, TEXT("Failed to process HTTP request"));
+		const FString ErrorMessage = TEXT("Failed to start HTTP request");
+		if (TryScheduleRetry(0, ErrorMessage, nullptr, false))
+		{
+			return;
+		}
+		LogError(ErrorMessage);
+		HandleError(0, ErrorMessage);
 		FinishRequest();
 	}
 }
 
 void UEGIK_AsyncRequestBase::OnHttpResponseReceived(TSharedPtr<IHttpRequest> HttpRequest, TSharedPtr<IHttpResponse> HttpResponse, bool bConnectedSuccessfully)
 {
-	if (!HttpResponse.IsValid())
+	if (!bConnectedSuccessfully || !HttpResponse.IsValid())
 	{
-		LogError(TEXT("Invalid HTTP response - connection may have failed"));
-		HandleError(0, TEXT("Failed to connect to server. The service may be down or the URL may be incorrect."));
+		const FString ErrorMessage = TEXT("Failed to connect to server. The service may be down, the request may have timed out, or the URL may be incorrect.");
+		if (TryScheduleRetry(0, ErrorMessage, HttpResponse, false))
+		{
+			return;
+		}
+		LogError(ErrorMessage);
+		HandleError(0, ErrorMessage);
 		FinishRequest();
 		return;
 	}
@@ -231,12 +247,24 @@ void UEGIK_AsyncRequestBase::OnHttpResponseReceived(TSharedPtr<IHttpRequest> Htt
 		LogMessage(FString::Printf(TEXT("Response Content: %s"), *ResponseContent));
 	}
 
-	// Handle rate limiting
-	if (ResponseCode == 429)
+	if (IsRetryableResponse(ResponseCode, true))
 	{
 		const FString ErrorMessage = FormatErrorResponse(ResponseCode, ResponseContent);
-		LogWarning(FString::Printf(TEXT("HTTP 429: %s"), *ErrorMessage));
-		HandleRateLimited(ErrorMessage);
+		if (TryScheduleRetry(ResponseCode, ErrorMessage, HttpResponse, true))
+		{
+			return;
+		}
+
+		if (ResponseCode == 429)
+		{
+			LogWarning(FString::Printf(TEXT("HTTP 429 after retries: %s"), *ErrorMessage));
+			HandleRateLimited(ErrorMessage);
+		}
+		else
+		{
+			LogError(FString::Printf(TEXT("HTTP %d after retries: %s"), ResponseCode, *ErrorMessage));
+			HandleError(ResponseCode, ErrorMessage);
+		}
 		FinishRequest();
 		return;
 	}
@@ -268,10 +296,98 @@ void UEGIK_AsyncRequestBase::OnHttpResponseReceived(TSharedPtr<IHttpRequest> Htt
 	FinishRequest();
 }
 
+bool UEGIK_AsyncRequestBase::IsRetryableResponse(int32 ResponseCode, bool bConnectedSuccessfully) const
+{
+	return !bConnectedSuccessfully || ResponseCode == 429 || (ResponseCode >= 500 && ResponseCode <= 599);
+}
+
+bool UEGIK_AsyncRequestBase::TryScheduleRetry(
+	int32 ResponseCode,
+	const FString& ErrorMessage,
+	const TSharedPtr<IHttpResponse>& HttpResponse,
+	bool bConnectedSuccessfully)
+{
+	if (bRequestFinished
+		|| !IsRetryableResponse(ResponseCode, bConnectedSuccessfully)
+		|| RetryAttemptCount >= GetMaxRetryAttempts())
+	{
+		return false;
+	}
+
+	const float DelaySeconds = CalculateRetryDelaySeconds(HttpResponse);
+	++RetryAttemptCount;
+	ActiveRequest.Reset();
+
+	LogWarning(FString::Printf(
+		TEXT("Retrying request %d/%d in %.2f seconds after: %s"),
+		RetryAttemptCount,
+		GetMaxRetryAttempts(),
+		DelaySeconds,
+		*ErrorMessage));
+
+	if (RetryTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(RetryTickerHandle);
+		RetryTickerHandle.Reset();
+	}
+
+	RetryTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateUObject(this, &UEGIK_AsyncRequestBase::HandleRetryTicker),
+		DelaySeconds);
+	return true;
+}
+
+bool UEGIK_AsyncRequestBase::HandleRetryTicker(float DeltaTime)
+{
+	RetryTickerHandle.Reset();
+	if (!bRequestFinished)
+	{
+		ExecuteRequest();
+	}
+	return false;
+}
+
+float UEGIK_AsyncRequestBase::CalculateRetryDelaySeconds(const TSharedPtr<IHttpResponse>& HttpResponse) const
+{
+	if (HttpResponse.IsValid())
+	{
+		FString RetryAfter = HttpResponse->GetHeader(TEXT("Retry-After"));
+		RetryAfter.TrimStartAndEndInline();
+		if (RetryAfter.IsNumeric())
+		{
+			const float HeaderDelay = FCString::Atof(*RetryAfter);
+			if (HeaderDelay >= 0.0f)
+			{
+				return HeaderDelay + FMath::FRandRange(0.0f, GetRetryJitterSeconds());
+			}
+		}
+	}
+
+	const float ExponentialDelay = GetInitialRetryDelaySeconds() * FMath::Pow(2.0f, static_cast<float>(RetryAttemptCount));
+	return FMath::Min(ExponentialDelay, GetMaxRetryDelaySeconds())
+		+ FMath::FRandRange(0.0f, GetRetryJitterSeconds());
+}
+
 void UEGIK_AsyncRequestBase::FinishRequest()
 {
+	if (bRequestFinished)
+	{
+		return;
+	}
+	bRequestFinished = true;
+
+	if (RetryTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(RetryTickerHandle);
+		RetryTickerHandle.Reset();
+	}
 	ActiveRequest.Reset();
 	SetReadyToDestroy();
+	if (bAddedToRootForRequest && IsRooted())
+	{
+		RemoveFromRoot();
+		bAddedToRootForRequest = false;
+	}
 	MarkAsGarbage();
 }
 
