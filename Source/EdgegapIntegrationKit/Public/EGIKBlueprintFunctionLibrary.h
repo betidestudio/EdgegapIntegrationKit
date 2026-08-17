@@ -214,6 +214,10 @@ struct FEGIK_CreateMatchmakingStruct
     UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
     FString Attributes;
 
+	/** Best-effort runtime comparison against the live Matchmaker profile schema. Logs only and never blocks this request. */
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking | Debug")
+	bool bLogProfileDebugInfo = false;
+
 	/** Legacy proxy header value. Prefer PlayerIp, which is serialized as player_ip in the request body. */
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking", meta = (DeprecatedProperty, DeprecationMessage = "Use PlayerIp. RealIp is retained only for X-Real-Ip proxy compatibility."))
 	FString RealIp = "";

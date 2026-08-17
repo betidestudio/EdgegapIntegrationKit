@@ -23,6 +23,8 @@ Edgegap Matchmaker is in active development with frequent updates. For the lates
 4. Call `CreateMatchmakingTicket`.
 5. On success, save the `TicketId` from the response. You need it for polling and cancellation.
 
+For runtime diagnostics, enable `bLogProfileDebugInfo`. EGIK fetches the active Matchmaker's generated Swagger schema in parallel, compares the selected profile with `StructuredAttributes`, and writes missing, unknown, or incorrectly typed attributes to `LogEdgegap`. This diagnostic never delays, blocks, or changes the ticket request. Schemas are cached briefly per Matchmaker URL, and attribute values and authorization tokens are never logged.
+
 {/* ![Build attributes JSON and create matchmaking ticket](/screenshots/matchmaking-tickets-create.png) */}
 
 ### Attributes JSON Format
@@ -87,7 +89,9 @@ Call `DeleteMatchmakingTicket` with the `TicketId` to cancel. Returns `409 Confl
 
 FEGIK_CreateMatchmakingStruct Req;
 Req.Profile = TEXT("quickplay");
-Req.Attributes = TEXT("{\"beacons\":{\"Montreal\":12.3,\"Toronto\":45.6}}");
+Req.StructuredAttributes.Values.Add(
+    UEGIK_MatchmakingAttributeLibrary::MakeBeaconLatenciesAttribute({{TEXT("Montreal"), 12.3}}));
+Req.bLogProfileDebugInfo = true;
 // Req.MatchmakingURL/AuthToken optional; empty => plugin settings.
 
 auto* Node = UEGIK_CreateMatchmakingTicket::CreateMatchmakingTicket(Req);

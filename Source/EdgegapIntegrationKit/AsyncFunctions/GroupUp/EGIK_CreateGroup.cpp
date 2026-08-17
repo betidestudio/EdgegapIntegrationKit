@@ -1,12 +1,23 @@
 // Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_CreateGroup.h"
+#include "EGIK_MatchmakingProfileDebug.h"
 #include "EGIK_MatchmakingRequestUtils.h"
 
 UEGIK_CreateGroup* UEGIK_CreateGroup::CreateGroup(const FEGIK_CreateGroupRequest& Request)
 {
 	UEGIK_CreateGroup* Node = NewObject<UEGIK_CreateGroup>();
 	Node->Var_Request = Request;
+	if (Request.bLogProfileDebugInfo)
+	{
+		EGIK_MatchmakingProfileDebug::LogProfileAlignment(
+			Request.MatchmakingURL,
+			Request.AuthToken,
+			TEXT("CreateGroup"),
+			Request.Profile,
+			Request.StructuredAttributes,
+			Request.Attributes);
+	}
 	return Node;
 }
 

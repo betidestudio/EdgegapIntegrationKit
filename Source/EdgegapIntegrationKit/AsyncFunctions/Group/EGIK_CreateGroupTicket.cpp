@@ -1,12 +1,27 @@
 // Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_CreateGroupTicket.h"
+#include "EGIK_MatchmakingProfileDebug.h"
 #include "EGIK_MatchmakingRequestUtils.h"
 
 UEGIK_CreateGroupTicket* UEGIK_CreateGroupTicket::CreateGroupTicket(const FEGIK_CreateGroupTicketRequest& Request)
 {
 	UEGIK_CreateGroupTicket* Node = NewObject<UEGIK_CreateGroupTicket>();
 	Node->Var_Request = Request;
+	if (Request.bLogProfileDebugInfo)
+	{
+		for (int32 Index = 0; Index < Request.Members.Num(); ++Index)
+		{
+			const FEGIK_MemberTicket& Member = Request.Members[Index];
+			EGIK_MatchmakingProfileDebug::LogProfileAlignment(
+				Request.MatchmakerUrl,
+				Request.AuthToken,
+				FString::Printf(TEXT("CreateGroupTicket.Member[%d]"), Index),
+				Member.Profile.IsEmpty() ? Request.ProfileId : Member.Profile,
+				Member.StructuredAttributes,
+				Member.Attributes);
+		}
+	}
 	return Node;
 }
 

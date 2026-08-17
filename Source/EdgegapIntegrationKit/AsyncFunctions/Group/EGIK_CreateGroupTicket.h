@@ -55,6 +55,10 @@ struct FEGIK_CreateGroupTicketRequest
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Group")
 	FString AuthToken;
+
+	/** Best-effort runtime comparison for every member against the live Matchmaker profile schema. Logs only and never blocks this request. */
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Group | Debug")
+	bool bLogProfileDebugInfo = false;
 };
 
 

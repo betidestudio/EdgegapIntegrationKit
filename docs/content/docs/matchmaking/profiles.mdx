@@ -89,6 +89,8 @@ Raw `Attributes` JSON is still supported for backward compatibility and uncommon
 
 EGIK also rejects duplicate or blank attribute names, empty intersection arrays, invalid beacon maps, and non-finite numbers locally. Edgegap still performs the authoritative profile-specific checks because only the running Matchmaker knows which keys and types its configuration requires.
 
+For a non-blocking runtime comparison, enable `bLogProfileDebugInfo` on a ticket, group, group-member, or legacy group-ticket creation request. EGIK queries `{MatchmakerURL}/swagger/v1/swagger.json`, caches the generated profile schema briefly, and logs missing, unknown, and incorrectly typed `StructuredAttributes`. Diagnostics never change whether the actual matchmaking request is submitted.
+
 ## C++ Typed Attributes
 
 ```cpp

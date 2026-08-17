@@ -1,12 +1,23 @@
 // Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_CreateMatchmakingTicket.h"
+#include "EGIK_MatchmakingProfileDebug.h"
 #include "EGIK_MatchmakingRequestUtils.h"
 
 UEGIK_CreateMatchmakingTicket* UEGIK_CreateMatchmakingTicket::CreateMatchmakingTicket(const FEGIK_CreateMatchmakingStruct& MatchmakingStruct)
 {
 	UEGIK_CreateMatchmakingTicket* Node = NewObject<UEGIK_CreateMatchmakingTicket>();
 	Node->Var_MatchmakingStruct = MatchmakingStruct;
+	if (MatchmakingStruct.bLogProfileDebugInfo)
+	{
+		EGIK_MatchmakingProfileDebug::LogProfileAlignment(
+			MatchmakingStruct.MatchmakingURL,
+			MatchmakingStruct.AuthToken,
+			TEXT("CreateMatchmakingTicket"),
+			MatchmakingStruct.Profile,
+			MatchmakingStruct.StructuredAttributes,
+			MatchmakingStruct.Attributes);
+	}
 	return Node;
 }
 

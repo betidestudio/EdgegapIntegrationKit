@@ -33,6 +33,7 @@ Here're some of the project's best features:
 #### Matchmaking Improvements:
 - Added type-safe Blueprint matchmaking attributes for strings, numbers, booleans, intersection arrays, and beacon latency maps while retaining raw JSON compatibility
 - Added local validation for matchmaking URLs, authorization tokens, profiles, resource IDs, group members, and structured attributes
+- Added optional non-blocking runtime profile diagnostics that compare ticket, Group Up, and group-ticket structured attributes against the active Matchmaker's generated Swagger schema
 - Standardized Matchmaker, Group Up, Group Ticket, and Backfill URL/auth resolution and structured API error reporting
 - Added per-attempt timeouts and bounded retries for network failures, rate limits, and transient server errors with exponential jittered backoff and `Retry-After` support
 - Updated ticket creation to serialize the supported `player_ip` JSON field and deprecated the legacy `RealIp` input

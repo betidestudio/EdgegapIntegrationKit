@@ -65,6 +65,7 @@ Req.Profile = TEXT("ranked-2v2");
 Req.StructuredAttributes.Values.Add(
     UEGIK_MatchmakingAttributeLibrary::MakeBeaconLatenciesAttribute({{TEXT("Montreal"), 15.2}}));
 Req.bIsReady = false;
+Req.bLogProfileDebugInfo = true; // Best-effort runtime diagnostics; never blocks the request.
 // Req.MatchmakingURL/AuthToken optional; leave empty to use plugin settings.
 
 auto* Node = UEGIK_CreateGroup::CreateGroup(Req);
@@ -92,6 +93,7 @@ Node->Activate();
 - Prefer `StructuredAttributes`: it supports string, number, boolean, string-array/intersection, and beacon-latency values without handwritten JSON.
 - The existing raw `Attributes` JSON field remains available for compatibility and unusual nested values. Set only one of `StructuredAttributes` or `Attributes`.
 - Requests are validated locally before sending. Empty profile/IDs, invalid URLs, missing tokens, duplicate structured keys, and malformed JSON go directly to `OnFailure` with `ErrorCode = 0` and a readable message.
+- Enable `bLogProfileDebugInfo` on Create Group or Create Group Member to compare `StructuredAttributes` with the active profile's generated runtime schema. Missing, unknown, and incorrectly typed fields are written to `LogEdgegap`; the request is still submitted normally even if the schema is unavailable or a mismatch is found.
 - Edgegap HTTP errors are unpacked into readable messages on the failure/rate-limit delegates and in `LogEdgegap`, including field paths returned by the API. Network failures, `429`, and transient `5xx` responses are retried up to three times with timeout protection and exponential jittered backoff; numeric `Retry-After` values are honored.
 - URL/token fields are optional per request; empty means plugin settings/environment fallback.
 - Group member status follows the matchmaker lifecycle: `SEARCHING`, `TEAM_FOUND`, `MATCH_FOUND`, then `HOST_ASSIGNED`.

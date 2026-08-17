@@ -24,6 +24,10 @@ struct FEGIK_CreateGroupRequest
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Group Up")
 	FString Attributes;
 
+	/** Best-effort runtime comparison against the live Matchmaker profile schema. Logs only and never blocks this request. */
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Group Up | Debug")
+	bool bLogProfileDebugInfo = false;
+
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Group Up")
 	FString PlayerIp;
 
