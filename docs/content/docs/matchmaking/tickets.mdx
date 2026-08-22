@@ -48,8 +48,8 @@ After creating a ticket, poll `GetMatchmakingTicket` on a timer until the assign
 1. Set up a looping timer every 3-5 seconds.
 2. Call `GetMatchmakingTicket` with the saved `TicketId`.
 3. Break the response and check `Assignment.IsNullOrEmpty`.
-4. When assignment arrives, read `FQDN` and `GamePort.External` from the `AssignmentStruct`.
-5. Connect using `open {FQDN}:{ExternalPort}` via Execute Console Command.
+4. When assignment arrives, pass it and the local PlayerController to [`Travel Player To Match Assignment`](/matchmaking/travel).
+5. The helper validates the assignment, selects the named external port, and travels the player.
 
 {/* ![Poll ticket, check assignment, connect using FQDN and Port](/screenshots/matchmaking-tickets-poll.png) */}
 

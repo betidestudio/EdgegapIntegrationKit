@@ -42,8 +42,8 @@ Group size is validated against your profile's `max_team_size`. New members will
 
 1. All members poll `GetGroupMember` with their `GroupId` and `MemberId` every 3-5 seconds.
 2. Check `Assignment.IsNullOrEmpty`. When it is `false`, the server is ready.
-3. Break the `AssignmentStruct` for `FQDN` and `GamePort.External` to build the connect address.
-4. Connect immediately with `open {FQDN}:{ExternalPort}`.
+3. For independently connected party clients, each member can call [`Travel Player To Match Assignment`](/matchmaking/travel).
+4. For a listen-server lobby, call `Travel Party To Match Assignment` once from the server-authoritative leader flow. It moves remote clients first, then the leader after a short RPC flush delay.
 
 <Callout type="info">
 **Save GroupId and MemberId persistently** (e.g. SaveGame). If the game crashes mid-queue, players can resume polling without losing their spot.

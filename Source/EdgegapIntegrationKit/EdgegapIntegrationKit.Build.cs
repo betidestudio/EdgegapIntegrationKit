@@ -24,6 +24,8 @@ public class EdgegapIntegrationKit : ModuleRules
             new string[]
             {
                 "Core",
+                "CoreUObject",
+                "Engine",
                 "Json",
             }
         );
@@ -31,8 +33,6 @@ public class EdgegapIntegrationKit : ModuleRules
         PrivateDependencyModuleNames.AddRange(
             new string[]
             {
-                "CoreUObject",
-                "Engine",
                 "Slate",
                 "SlateCore",
                 "JsonUtilities",

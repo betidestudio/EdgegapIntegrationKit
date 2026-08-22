@@ -13,6 +13,8 @@
 #include "EGIK_MatchmakingAttributes.h"
 #include "EGIKBlueprintFunctionLibrary.generated.h"
 
+class APlayerController;
+
 USTRUCT(BlueprintType)
 struct FEGIK_PortStruct
 {
@@ -1001,6 +1003,72 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit | Matchmaking")
 	static FString GetMatchmakingAuthToken();
+
+	/** Build a host:port address from a matchmaking assignment and named external port. */
+	UFUNCTION(BlueprintPure, Category = "Edgegap Integration Kit | Matchmaking | Travel")
+	static bool MakeMatchmakingAssignmentAddress(
+		const FEGIK_AssignmentStruct& Assignment,
+		FString& Address,
+		FString& ErrorMessage,
+		FName PortName = TEXT("gameport"),
+		bool bPreferFQDN = true);
+
+	/** Travel one local or remotely owned player. True means the travel instruction was accepted. */
+	UFUNCTION(BlueprintCallable, meta = (ExpandBoolAsExecs = "ReturnValue", AdvancedDisplay = "TravelType"), Category = "Edgegap Integration Kit | Matchmaking | Travel")
+	static bool TravelPlayerToMatch(
+		APlayerController* PlayerController,
+		const FString& Address,
+		FString& ErrorMessage,
+		ETravelType TravelType = TRAVEL_Absolute);
+
+	/** Resolve an assignment and travel one local or remotely owned player. */
+	UFUNCTION(BlueprintCallable, meta = (ExpandBoolAsExecs = "ReturnValue", AdvancedDisplay = "PortName,bPreferFQDN,TravelType"), Category = "Edgegap Integration Kit | Matchmaking | Travel")
+	static bool TravelPlayerToMatchAssignment(
+		APlayerController* PlayerController,
+		const FEGIK_AssignmentStruct& Assignment,
+		FString& ErrorMessage,
+		FName PortName = TEXT("gameport"),
+		bool bPreferFQDN = true,
+		ETravelType TravelType = TRAVEL_Absolute);
+
+	/**
+	 * Authority-only party travel for an explicit PlayerController roster.
+	 * Remote members travel first; a listen-server leader travels after the RPC flush delay.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, meta = (WorldContext = "WorldContextObject", ExpandBoolAsExecs = "ReturnValue", AdvancedDisplay = "LeaderTravelDelay,TravelType", ClampMin = "0.0"), Category = "Edgegap Integration Kit | Matchmaking | Travel")
+	static bool TravelPartyToMatch(
+		UObject* WorldContextObject,
+		const TArray<APlayerController*>& PartyMembers,
+		const FString& Address,
+		FString& ErrorMessage,
+		float LeaderTravelDelay = 0.5f,
+		ETravelType TravelType = TRAVEL_Absolute);
+
+	/** Resolve an assignment and travel an explicit PlayerController party roster. */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, meta = (WorldContext = "WorldContextObject", ExpandBoolAsExecs = "ReturnValue", AdvancedDisplay = "PortName,bPreferFQDN,LeaderTravelDelay,TravelType", ClampMin = "0.0"), Category = "Edgegap Integration Kit | Matchmaking | Travel")
+	static bool TravelPartyToMatchAssignment(
+		UObject* WorldContextObject,
+		const TArray<APlayerController*>& PartyMembers,
+		const FEGIK_AssignmentStruct& Assignment,
+		FString& ErrorMessage,
+		FName PortName = TEXT("gameport"),
+		bool bPreferFQDN = true,
+		float LeaderTravelDelay = 0.5f,
+		ETravelType TravelType = TRAVEL_Absolute);
+
+	/**
+	 * Convenience for one-party lobby worlds. Travels every connected PlayerController.
+	 * Use Travel Party To Match Assignment when a server hosts more than one party.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, meta = (WorldContext = "WorldContextObject", ExpandBoolAsExecs = "ReturnValue", AdvancedDisplay = "PortName,bPreferFQDN,LeaderTravelDelay,TravelType", ClampMin = "0.0"), Category = "Edgegap Integration Kit | Matchmaking | Travel")
+	static bool TravelAllConnectedPlayersToMatchAssignment(
+		UObject* WorldContextObject,
+		const FEGIK_AssignmentStruct& Assignment,
+		FString& ErrorMessage,
+		FName PortName = TEXT("gameport"),
+		bool bPreferFQDN = true,
+		float LeaderTravelDelay = 0.5f,
+		ETravelType TravelType = TRAVEL_Absolute);
 
 	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit")
 	static void GetEnvironmentVariable(FString Key, FString& Value);

@@ -1,0 +1,53 @@
+---
+title: Travelling to a Match
+description: Safely connect solo players and parties to an assigned server
+---
+
+## Solo Player
+
+When an assignment becomes available, call **Travel Player To Match Assignment** and
+pass the local PlayerController. The node selects the requested external assignment
+port, prefers the assignment FQDN by default, and travels immediately.
+
+The default port name is `gameport`. Change **Port Name** when your application version
+uses a different named game port.
+
+## Listen-Server Party
+
+Call **Travel Party To Match Assignment** once from server-authoritative party logic,
+passing the PlayerControllers in that party. The helper performs the required ordering:
+
+1. Send a reliable travel RPC to every remote PlayerController.
+2. Wait **Leader Travel Delay** (0.5 seconds by default).
+3. Travel the listen-server leader.
+
+Travelling the leader first destroys the listen-server lobby connection before the
+remote travel instructions can be delivered. The short delay is an RPC flush window;
+it is not an Edgegap deployment delay.
+
+On a dedicated lobby server there is no local leader, so all remote players travel and
+the lobby server remains running.
+
+For a listen-server lobby containing exactly one party, **Travel All Connected Players
+To Match Assignment** provides a shorter convenience path. Servers hosting multiple
+parties should use the explicit party-roster node.
+
+<Callout type="warn">
+Party travel is authority-only. Do not let an arbitrary client decide
+when the whole party travels; validate readiness and assignment state on the server.
+</Callout>
+
+## Raw Addresses
+
+Use **Travel Player To Match** or **Travel Party To Match** when you already have an
+address. Both `example.edgegap.net:32001` and `open example.edgegap.net:32001` are
+accepted; the helper removes the console-command `open` prefix before calling Unreal
+travel.
+
+Each travel node returns separate success/failure execution paths plus a readable error
+message. Success means Unreal accepted or scheduled the travel instruction; connection
+failures after travel begins still use Unreal's normal network-failure handling.
+
+The helpers reject empty assignments, missing hosts, missing named ports, invalid
+external ports, client-authoritative party calls, and invalid party rosters before
+moving anyone. Travel ordering is written to `LogEdgegap`.

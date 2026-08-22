@@ -38,6 +38,7 @@ Here're some of the project's best features:
 - Added per-attempt timeouts and bounded retries for network failures, rate limits, and transient server errors with exponential jittered backoff and `Retry-After` support
 - Updated ticket creation to serialize the supported `player_ip` JSON field and deprecated the legacy `RealIp` input
 - Updated server environment helpers to use `MM_GROUPS` and `MM_EXPANSION`, with fallbacks for legacy variable names
+- Added Blueprint travel helpers that resolve assignment ports and safely move remote party members before a listen-server leader, with no custom RPC or component setup
 
 #### Backfill Fixes:
 - Fixed `CreateBackfill` silently omitting attribute overrides and malformed ticket JSON
