@@ -40,7 +40,12 @@ namespace
 			return true;
 		}
 
-		return GConfig->GetString(TEXT("Ultimate Crossplay Integration Kit"), Key, OutValue, ConfigFile);
+		if (GConfig->GetString(TEXT("Ultimate Crossplay Integration Kit"), Key, OutValue, ConfigFile))
+		{
+			return true;
+		}
+
+		return GConfig->GetString(TEXT("/Script/Edgegap.EdgegapSettings"), Key, OutValue, ConfigFile);
 	}
 }
 
@@ -74,6 +79,25 @@ UEdgegapSettings::UEdgegapSettings()
 		GetConfigStringWithLegacySections(TEXT("ServerBrowserClientToken"), ServerBrowserClientToken, GEngineIni);
 		GetConfigStringWithLegacySections(TEXT("MatchmakingURL"), MatchmakingURL, GEngineIni);
 		GetConfigStringWithLegacySections(TEXT("MatchmakingAuthToken"), MatchmakingAuthToken, GEngineIni);
+
+		// Compatibility with projects configured before these client-safe values
+		// moved from the editor hierarchy to Engine config.
+		if (MatchmakingURL.IsEmpty())
+		{
+			GetConfigStringWithLegacySections(TEXT("MatchmakingURL"), MatchmakingURL, GEditorPerProjectIni);
+		}
+		if (MatchmakingAuthToken.IsEmpty())
+		{
+			GetConfigStringWithLegacySections(TEXT("MatchmakingAuthToken"), MatchmakingAuthToken, GEditorPerProjectIni);
+		}
+		if (MatchmakingURL.IsEmpty())
+		{
+			GetConfigStringWithLegacySections(TEXT("MatchmakingURL"), MatchmakingURL, GEditorIni);
+		}
+		if (MatchmakingAuthToken.IsEmpty())
+		{
+			GetConfigStringWithLegacySections(TEXT("MatchmakingAuthToken"), MatchmakingAuthToken, GEditorIni);
+		}
 	}
 }
 

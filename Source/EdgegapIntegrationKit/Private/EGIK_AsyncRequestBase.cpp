@@ -6,6 +6,21 @@ DEFINE_LOG_CATEGORY(LogEdgegap);
 
 namespace EGIK_AsyncRequest
 {
+	static bool IsUsableHttpUrl(const FString& Url)
+	{
+		const bool bHttp = Url.StartsWith(TEXT("http://"), ESearchCase::IgnoreCase);
+		const bool bHttps = Url.StartsWith(TEXT("https://"), ESearchCase::IgnoreCase);
+		if (!bHttp && !bHttps)
+		{
+			return false;
+		}
+
+		const int32 HostStart = bHttps ? 8 : 7;
+		const int32 PathStart = Url.Find(TEXT("/"), ESearchCase::CaseSensitive, ESearchDir::FromStart, HostStart);
+		const FString Host = PathStart == INDEX_NONE ? Url.Mid(HostStart) : Url.Mid(HostStart, PathStart - HostStart);
+		return !Host.TrimStartAndEnd().IsEmpty();
+	}
+
 	static FString JsonScalarToString(const TSharedPtr<FJsonValue>& Value)
 	{
 		if (!Value.IsValid())
@@ -171,10 +186,22 @@ void UEGIK_AsyncRequestBase::ExecuteRequest()
 		return;
 	}
 
+	FString Url = GetEndpointURL();
+	Url.TrimStartAndEndInline();
+	if (!EGIK_AsyncRequest::IsUsableHttpUrl(Url))
+	{
+		const FString ErrorMessage = FString::Printf(
+			TEXT("Request was not sent: endpoint URL '%s' is invalid or has no host."),
+			*Url);
+		LogError(ErrorMessage);
+		HandleError(0, ErrorMessage);
+		FinishRequest();
+		return;
+	}
+
 	FHttpModule* Http = &FHttpModule::Get();
 	ActiveRequest = Http->CreateRequest();
 
-	const FString Url = GetEndpointURL();
 	const FString Verb = HttpVerbToString(GetHTTPVerb());
 
 	ActiveRequest->SetVerb(Verb);

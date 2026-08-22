@@ -1702,8 +1702,6 @@ FString FEdgegapSettingsDetails::GenerateDockerBuildStartServerScript()
 	FString Script;
 	Script += TEXT("#!/bin/sh\n\n");
 	Script += TEXT("GAME_PORT=$(echo $ARBITRIUM_PORTS_MAPPING | jq '.ports.gameport.internal')\n\n");
-	Script += TEXT("printenv\n");
-	Script += TEXT("env\n\n");
 	Script += TEXT("# Function to call Edgegap self-stop API\n");
 	Script += TEXT("call_stop_api() {\n");
 	Script += TEXT("    local EXIT_CODE=$1\n");

@@ -2,6 +2,8 @@
 
 #include "EGIK_GetLocationBeacons.h"
 
+#include "EGIK_MatchmakingRequestUtils.h"
+
 UEGIK_GetLocationBeacons* UEGIK_GetLocationBeacons::GetLocationBeacons(FString MatchmakingUrl, FString AuthToken)
 {
 	UEGIK_GetLocationBeacons* BlueprintNode = NewObject<UEGIK_GetLocationBeacons>();
@@ -12,14 +14,7 @@ UEGIK_GetLocationBeacons* UEGIK_GetLocationBeacons::GetLocationBeacons(FString M
 
 FString UEGIK_GetLocationBeacons::GetEndpointURL() const
 {
-	FString BaseURL = Var_MatchmakingUrl.IsEmpty()
-		? UEGIKBlueprintFunctionLibrary::GetMatchmakingURL()
-		: Var_MatchmakingUrl;
-	if (BaseURL.EndsWith(TEXT("/")))
-	{
-		BaseURL = BaseURL.LeftChop(1);
-	}
-	return BaseURL + TEXT("/locations/beacons");
+	return EGIK_MatchmakingRequest::ResolveURL(Var_MatchmakingUrl) + TEXT("/locations/beacons");
 }
 
 EEGIK_HttpVerb UEGIK_GetLocationBeacons::GetHTTPVerb() const
@@ -29,40 +24,77 @@ EEGIK_HttpVerb UEGIK_GetLocationBeacons::GetHTTPVerb() const
 
 FString UEGIK_GetLocationBeacons::GetAuthorizationHeader() const
 {
-	return Var_AuthToken.IsEmpty()
-		? UEGIKBlueprintFunctionLibrary::GetMatchmakingAuthToken()
-		: Var_AuthToken;
+	return EGIK_MatchmakingRequest::ResolveAuthToken(Var_AuthToken);
+}
+
+bool UEGIK_GetLocationBeacons::ValidateRequest(FString& OutErrorMessage) const
+{
+	return EGIK_MatchmakingRequest::ValidateConnection(Var_MatchmakingUrl, Var_AuthToken, OutErrorMessage);
 }
 
 void UEGIK_GetLocationBeacons::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)
 {
 	FEGIK_LocationBeaconResponse Response;
 
-	if (JsonObject.IsValid())
+	const TArray<TSharedPtr<FJsonValue>>* BeaconsArray = nullptr;
+	if (JsonObject.IsValid() && JsonObject->TryGetArrayField(TEXT("beacons"), BeaconsArray) && BeaconsArray)
 	{
-		Response.Count = JsonObject->GetIntegerField(TEXT("count"));
-		TArray<TSharedPtr<FJsonValue>> BeaconsArray = JsonObject->GetArrayField(TEXT("beacons"));
-		for (TSharedPtr<FJsonValue> BeaconValue : BeaconsArray)
+		double Count = 0.0;
+		if (JsonObject->TryGetNumberField(TEXT("count"), Count))
 		{
-			TSharedPtr<FJsonObject> BeaconObject = BeaconValue->AsObject();
+			Response.Count = static_cast<int32>(Count);
+		}
+
+		for (const TSharedPtr<FJsonValue>& BeaconValue : *BeaconsArray)
+		{
+			if (!BeaconValue.IsValid() || BeaconValue->Type != EJson::Object)
+			{
+				continue;
+			}
+
+			const TSharedPtr<FJsonObject> BeaconObject = BeaconValue->AsObject();
+			if (!BeaconObject.IsValid())
+			{
+				continue;
+			}
+
 			FEGIK_LocationBeaconStruct Beacon;
-			Beacon.FQDN = BeaconObject->GetStringField(TEXT("fqdn"));
-			Beacon.PublicIP = BeaconObject->GetStringField(TEXT("public_ip"));
-			Beacon.TCP_Port = BeaconObject->GetIntegerField(TEXT("tcp_port"));
-			Beacon.UDP_Port = BeaconObject->GetIntegerField(TEXT("udp_port"));
-			TSharedPtr<FJsonObject> LocationObject = BeaconObject->GetObjectField(TEXT("location"));
-			Beacon.Location.City = LocationObject->GetStringField(TEXT("city"));
-			Beacon.Location.Country = LocationObject->GetStringField(TEXT("country"));
-			Beacon.Location.Continent = LocationObject->GetStringField(TEXT("continent"));
-			Beacon.Location.AdministrativeDivision = LocationObject->GetStringField(TEXT("administrative_division"));
-			Beacon.Location.Timezone = LocationObject->GetStringField(TEXT("timezone"));
+			BeaconObject->TryGetStringField(TEXT("fqdn"), Beacon.FQDN);
+			BeaconObject->TryGetStringField(TEXT("public_ip"), Beacon.PublicIP);
+
+			double Port = 0.0;
+			if (BeaconObject->TryGetNumberField(TEXT("tcp_port"), Port))
+			{
+				Beacon.TCP_Port = static_cast<int32>(Port);
+			}
+			if (BeaconObject->TryGetNumberField(TEXT("udp_port"), Port))
+			{
+				Beacon.UDP_Port = static_cast<int32>(Port);
+			}
+
+			if (BeaconObject->HasTypedField<EJson::Object>(TEXT("location")))
+			{
+				const TSharedPtr<FJsonObject> LocationObject = BeaconObject->GetObjectField(TEXT("location"));
+				if (LocationObject.IsValid())
+				{
+					LocationObject->TryGetStringField(TEXT("city"), Beacon.Location.City);
+					LocationObject->TryGetStringField(TEXT("country"), Beacon.Location.Country);
+					LocationObject->TryGetStringField(TEXT("continent"), Beacon.Location.Continent);
+					LocationObject->TryGetStringField(TEXT("administrative_division"), Beacon.Location.AdministrativeDivision);
+					LocationObject->TryGetStringField(TEXT("timezone"), Beacon.Location.Timezone);
+				}
+			}
 			Response.Beacons.Add(Beacon);
+		}
+		if (Response.Count == 0)
+		{
+			Response.Count = Response.Beacons.Num();
 		}
 		OnSuccess.Broadcast(Response, FEGIK_ErrorStruct());
 	}
 	else
 	{
-		OnFailure.Broadcast(FEGIK_LocationBeaconResponse(), FEGIK_ErrorStruct(0, TEXT("Failed to parse JSON")));
+		OnFailure.Broadcast(FEGIK_LocationBeaconResponse(), FEGIK_ErrorStruct(0, TEXT("Location-beacons response did not contain a valid 'beacons' array.")));
 	}
 }
 
