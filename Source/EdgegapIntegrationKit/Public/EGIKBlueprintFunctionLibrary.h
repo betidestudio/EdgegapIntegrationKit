@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/EngineBaseTypes.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "HttpModule.h"
 #include "Dom/JsonObject.h"
