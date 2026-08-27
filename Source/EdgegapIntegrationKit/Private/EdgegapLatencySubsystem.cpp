@@ -10,9 +10,21 @@
 
 void UEdgegapLatencySubsystem::StartLatencyTestForMultipleServers(const TArray<FIPPortInfo>& ServerList, FOnLatencyTestCompleted OnLatencyTestCompleted)
 {
+    if (GetWorld())
+    {
+        GetWorld()->GetTimerManager().ClearTimer(ResponseTimerHandle);
+        GetWorld()->GetTimerManager().ClearTimer(ResponseTimeoutHandle);
+    }
+    CleanupSocket();
+
     OnLatencyTestCompletedDelegate = OnLatencyTestCompleted;
     // Copy the server list and initialize the index
     ServersToTest = ServerList;
+    for (FIPPortInfo& Server : ServersToTest)
+    {
+        Server.Latency = -1.0f;
+        Server.bSucceeded = false;
+    }
     CurrentServerIndex = -1;
 
     if (ServersToTest.Num() > 0)
@@ -23,10 +35,11 @@ void UEdgegapLatencySubsystem::StartLatencyTestForMultipleServers(const TArray<F
     else
     {
         UE_LOG(LogTemp, Warning, TEXT("No servers provided for latency test."));
+        OnLatencyTestCompletedDelegate.ExecuteIfBound(ServersToTest);
     }
 }
 
-bool UEdgegapLatencySubsystem::InitializeSocket(int32 Port)
+bool UEdgegapLatencySubsystem::InitializeSocket()
 {
     // Create the UDP socket
     UDPSocket = FUdpSocketBuilder(TEXT("EdgegapLatencySocket"))
@@ -55,7 +68,10 @@ void UEdgegapLatencySubsystem::SendPingToServer(const FIPPortInfo& ServerInfo)
     RemoteAddr->SetIp(EdgegapAddress.Value);
     RemoteAddr->SetPort(ServerInfo.Port);
 
-    if(!InitializeSocket(ServerInfo.Port))
+    ExpectedRemoteIp = EdgegapAddress.Value;
+    ExpectedRemotePort = ServerInfo.Port;
+
+    if(!InitializeSocket())
     {
         UE_LOG(LogTemp, Error, TEXT("Failed to initialize socket for server: %s:%d"), *ServerInfo.IPAddress, ServerInfo.Port);
         MoveToNextServer();  // Move to next server if socket initialization fails
@@ -66,9 +82,13 @@ void UEdgegapLatencySubsystem::SendPingToServer(const FIPPortInfo& ServerInfo)
     StartTime = FPlatformTime::Seconds();
 
     // Send the ping message
-    FString PingMessage = TEXT("Ping");
+    const ANSICHAR* PingMessage = "Ping";
     int32 BytesSent = 0;
-    bool bSent = UDPSocket->SendTo((uint8*)TCHAR_TO_UTF8(*PingMessage), PingMessage.Len(), BytesSent, *RemoteAddr);
+    const bool bSent = UDPSocket->SendTo(
+        reinterpret_cast<const uint8*>(PingMessage),
+        4,
+        BytesSent,
+        *RemoteAddr);
     if (!bSent)
     {
         UE_LOG(LogTemp, Error, TEXT("Failed to send ping to server: %s:%d"), *ServerInfo.IPAddress, ServerInfo.Port);
@@ -81,12 +101,17 @@ void UEdgegapLatencySubsystem::SendPingToServer(const FIPPortInfo& ServerInfo)
     GetWorld()->GetTimerManager().SetTimer(ResponseTimerHandle, this, &UEdgegapLatencySubsystem::ReceivePong, 0.01f, true);
 
     // Set a timeout in case no response is received
-    GetWorld()->GetTimerManager().SetTimer(ResponseTimeoutHandle, [this]()
+    GetWorld()->GetTimerManager().SetTimer(ResponseTimeoutHandle, FTimerDelegate::CreateWeakLambda(this, [this]()
     {
-        ResponseTimerHandle.Invalidate();  // Stop the timer
-        UE_LOG(LogTemp, Warning, TEXT("Ping to server timed out."));
+        GetWorld()->GetTimerManager().ClearTimer(ResponseTimerHandle);
+        ServersToTest[CurrentServerIndex].Latency = -1.0f;
+        ServersToTest[CurrentServerIndex].bSucceeded = false;
+        UE_LOG(LogTemp, Warning, TEXT("Ping to beacon %s:%d timed out."),
+            *ServersToTest[CurrentServerIndex].IPAddress,
+            ServersToTest[CurrentServerIndex].Port);
+        CleanupSocket();
         MoveToNextServer();
-    }, 5.0f, false);  // Set the timeout to 5 seconds (adjust as necessary)
+    }), 2.0f, false);
 }
 
 void UEdgegapLatencySubsystem::ReceivePong()
@@ -102,17 +127,24 @@ void UEdgegapLatencySubsystem::ReceivePong()
     }
     if (UDPSocket->RecvFrom(Buffer, sizeof(Buffer), BytesRead, *Sender))
     {
-        FString Response = FString(ANSI_TO_TCHAR(reinterpret_cast<const char*>(Buffer)));
-        if (Response.Contains(TEXT("Ping")))
+        uint32 SenderIp = 0;
+        Sender->GetIp(SenderIp);
+        const bool bExpectedSender = SenderIp == ExpectedRemoteIp && Sender->GetPort() == ExpectedRemotePort;
+        const bool bExpectedPayload = BytesRead == 4 && FMemory::Memcmp(Buffer, "Ping", 4) == 0;
+        if (bExpectedSender && bExpectedPayload)
         {
             // Record the end time and calculate latency
             double EndTime = FPlatformTime::Seconds();
             float Latency = (EndTime - StartTime) * 1000.0f; // Convert to milliseconds
 
-            UE_LOG(LogTemp, Log, TEXT("Received pong from server. Latency: %f.2f ms"), Latency);
+            UE_LOG(LogTemp, Log, TEXT("Received beacon pong from %s:%d. Latency: %.2f ms"),
+                *ServersToTest[CurrentServerIndex].IPAddress,
+                ServersToTest[CurrentServerIndex].Port,
+                Latency);
 
             // Store the latency in the corresponding server info
             ServersToTest[CurrentServerIndex].Latency = Latency;
+            ServersToTest[CurrentServerIndex].bSucceeded = true;
 
             // Clear the timeout timer when a response is received
             GetWorld()->GetTimerManager().ClearTimer(ResponseTimeoutHandle);
@@ -120,13 +152,12 @@ void UEdgegapLatencySubsystem::ReceivePong()
         }
         else
         {
-            UE_LOG(LogTemp, Warning, TEXT("Received an unexpected response: %s"), *Response);
+            UE_LOG(LogTemp, Verbose, TEXT("Ignored an unexpected UDP packet while measuring beacon latency."));
             return;
         }
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("No response yet. Retrying..."));
         return; // Keep waiting for a pong
     }
 
@@ -146,7 +177,11 @@ void UEdgegapLatencySubsystem::MoveToNextServer()
     {
         // All servers have been pinged, sort the array by latency
         ServersToTest.Sort([](const FIPPortInfo& A, const FIPPortInfo& B) {
-            return A.Latency < B.Latency; // Sort by latency (ascending)
+            if (A.bSucceeded != B.bSucceeded)
+            {
+                return A.bSucceeded;
+            }
+            return A.Latency < B.Latency;
         });
 
         // Call a Blueprint event to return the sorted array
@@ -158,6 +193,11 @@ void UEdgegapLatencySubsystem::MoveToNextServer()
 
 void UEdgegapLatencySubsystem::Deinitialize()
 {
+    if (GetWorld())
+    {
+        GetWorld()->GetTimerManager().ClearTimer(ResponseTimerHandle);
+        GetWorld()->GetTimerManager().ClearTimer(ResponseTimeoutHandle);
+    }
     CleanupSocket();
     Super::Deinitialize();
 }

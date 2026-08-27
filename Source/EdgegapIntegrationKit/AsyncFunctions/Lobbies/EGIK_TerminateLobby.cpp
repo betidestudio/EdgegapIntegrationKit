@@ -1,5 +1,4 @@
-﻿// Copyright (c) 2024 Betide Studio. All Rights Reserved.
-
+// Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_TerminateLobby.h"
 
@@ -10,61 +9,42 @@ UEGIK_TerminateLobby* UEGIK_TerminateLobby::TerminateLobby(FString LobbyName)
 	return Node;
 }
 
-void UEGIK_TerminateLobby::Activate()
+FString UEGIK_TerminateLobby::GetEndpointURL() const
 {
-	Super::Activate();
-	FHttpModule* Http = &FHttpModule::Get();
-	TSharedRef<IHttpRequest> Request = Http->CreateRequest();
-	Request->SetVerb("POST");
-	Request->SetURL("https://api.edgegap.com/v1/lobbies:terminate");
-	Request->SetHeader("Content-Type", "application/json");
-	Request->SetHeader("Authorization", UEGIKBlueprintFunctionLibrary::GetAuthorizationKey());
-	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
-	JsonObject->SetStringField("name", Var_LobbyName);
-	FString Content;
-	TSharedRef<TJsonWriter<TCHAR>> Writer = TJsonWriterFactory<>::Create(&Content);
-	FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
-	Request->SetContentAsString(Content);
-	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_TerminateLobby::OnResponseReceived);
-	if (!Request->ProcessRequest())
-	{
-		OnFailure.Broadcast(FEGIK_LobbyInfo(), FEGIK_ErrorStruct(0, "Failed to process request"));
-		SetReadyToDestroy();
-		MarkAsGarbage();
-	}
+	return TEXT("https://api.edgegap.com/v1/lobbies:terminate");
 }
 
-void UEGIK_TerminateLobby::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest,
-	TSharedPtr<IHttpResponse> HttpResponse, bool bArg)
+EEGIK_HttpVerb UEGIK_TerminateLobby::GetHTTPVerb() const
 {
-	if (HttpResponse.IsValid())
+	return EEGIK_HttpVerb::POST;
+}
+
+TSharedPtr<FJsonObject> UEGIK_TerminateLobby::BuildRequestBody() const
+{
+	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
+	JsonObject->SetStringField(TEXT("name"), Var_LobbyName);
+	return JsonObject;
+}
+
+void UEGIK_TerminateLobby::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)
+{
+	if (JsonObject.IsValid())
 	{
-		if (EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
-		{
-			TSharedPtr<FJsonObject> JsonObject;
-			TSharedRef<TJsonReader<TCHAR>> Reader = TJsonReaderFactory<TCHAR>::Create(HttpResponse->GetContentAsString());
-			if (FJsonSerializer::Deserialize(Reader, JsonObject))
-			{
-				FEGIK_LobbyInfo Lobby;
-				Lobby.Name = JsonObject->GetStringField(TEXT("name"));
-				Lobby.Url = JsonObject->GetStringField(TEXT("url"));
-				Lobby.Status = JsonObject->GetStringField(TEXT("status"));
-				OnSuccess.Broadcast(Lobby, FEGIK_ErrorStruct());
-			}
-			else
-			{
-				OnFailure.Broadcast(FEGIK_LobbyInfo(), FEGIK_ErrorStruct(0, "Failed to deserialize response"));
-			}
-		}
-		else
-		{
-			OnFailure.Broadcast(FEGIK_LobbyInfo(), FEGIK_ErrorStruct(HttpResponse->GetResponseCode(), HttpResponse->GetContentAsString()));
-		}
+		FEGIK_LobbyInfo Lobby;
+		Lobby.Name = JsonObject->GetStringField(TEXT("name"));
+		Lobby.Url = JsonObject->GetStringField(TEXT("url"));
+		Lobby.Status = JsonObject->GetStringField(TEXT("status"));
+		OnSuccess.Broadcast(Lobby, FEGIK_ErrorStruct());
 	}
 	else
 	{
-		OnFailure.Broadcast(FEGIK_LobbyInfo(), FEGIK_ErrorStruct(0, "Failed to deserialize response"));
+		UE_LOG(LogEdgegap, Error, TEXT("[Lobbies] Failed to deserialize response"));
+		OnFailure.Broadcast(FEGIK_LobbyInfo(), FEGIK_ErrorStruct(0, TEXT("Failed to deserialize response")));
 	}
-	SetReadyToDestroy();
-	MarkAsGarbage();
+}
+
+void UEGIK_TerminateLobby::HandleError(int32 ErrorCode, const FString& ErrorMessage)
+{
+	UE_LOG(LogEdgegap, Error, TEXT("[Lobbies] TerminateLobby failed with error %d: %s"), ErrorCode, *ErrorMessage);
+	OnFailure.Broadcast(FEGIK_LobbyInfo(), FEGIK_ErrorStruct(ErrorCode, ErrorMessage));
 }

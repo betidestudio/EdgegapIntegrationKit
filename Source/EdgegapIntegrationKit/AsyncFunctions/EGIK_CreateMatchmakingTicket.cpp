@@ -1,113 +1,137 @@
-// Copyright (c) 2024 Betide Studio. All Rights Reserved.
-
+// Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_CreateMatchmakingTicket.h"
+#include "EGIK_MatchmakingProfileDebug.h"
+#include "EGIK_MatchmakingRequestUtils.h"
 
 UEGIK_CreateMatchmakingTicket* UEGIK_CreateMatchmakingTicket::CreateMatchmakingTicket(const FEGIK_CreateMatchmakingStruct& MatchmakingStruct)
 {
-	UEGIK_CreateMatchmakingTicket* BlueprintNode = NewObject<UEGIK_CreateMatchmakingTicket>();
-	BlueprintNode->Var_MatchmakingStruct = MatchmakingStruct;
-	return BlueprintNode;
+	UEGIK_CreateMatchmakingTicket* Node = NewObject<UEGIK_CreateMatchmakingTicket>();
+	Node->Var_MatchmakingStruct = MatchmakingStruct;
+	if (MatchmakingStruct.bLogProfileDebugInfo)
+	{
+		EGIK_MatchmakingProfileDebug::LogProfileAlignment(
+			MatchmakingStruct.MatchmakingURL,
+			MatchmakingStruct.AuthToken,
+			TEXT("CreateMatchmakingTicket"),
+			MatchmakingStruct.Profile,
+			MatchmakingStruct.StructuredAttributes,
+			MatchmakingStruct.Attributes);
+	}
+	return Node;
 }
 
-void UEGIK_CreateMatchmakingTicket::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest,
-	TSharedPtr<IHttpResponse> HttpResponse, bool bArg)
+FString UEGIK_CreateMatchmakingTicket::GetEndpointURL() const
 {
-	FEGIK_MatchmakingResponse Response;
-	if(HttpResponse.IsValid())
-	{
-		const int32 ResponseCode = HttpResponse->GetResponseCode();
-		if(EHttpResponseCodes::IsOk(ResponseCode))
-		{
-			TSharedPtr<FJsonObject> JsonObject;
-			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(HttpResponse->GetContentAsString());
-			if(FJsonSerializer::Deserialize(Reader, JsonObject))
-			{
-				Response.TicketId = JsonObject->GetStringField(TEXT("id"));
-				Response.GameProfile = JsonObject->GetStringField(TEXT("profile"));
-				FDateTime::ParseIso8601(*JsonObject->GetStringField(TEXT("created_at")), Response.CreatedAt);
-				const TSharedPtr<FJsonObject>* AssignmentObject;
-				if (JsonObject->HasTypedField<EJson::Object>(TEXT("assignment")))
-				{
-					// The assignment field exists and is an object
-					if (JsonObject->TryGetObjectField(TEXT("assignment"), AssignmentObject))
-					{
-						// Deserialize the assignment object
-						Response.Assignment = FEGIK_AssignmentStruct(*AssignmentObject);
-					}
-					else
-					{
-						// The assignment field is either null or missing, so handle it as null
-						Response.Assignment = FEGIK_AssignmentStruct("null");
-					}
-				}
-				else
-				{
-					// The assignment field is either null or missing, so handle it as null
-					Response.Assignment = FEGIK_AssignmentStruct("null");
-				}
-				OnSuccess.Broadcast(Response, FEGIK_ErrorStruct());
-			}
-			else
-			{
-				OnFailure.Broadcast(FEGIK_MatchmakingResponse(), FEGIK_ErrorStruct(0, "Failed to parse JSON"));
-			}
-		}
-		else if(ResponseCode == 429)
-		{
-			// 429 Too Many Requests - Rate limiting response
-			OnRateLimited.Broadcast(FEGIK_MatchmakingResponse(), FEGIK_ErrorStruct(429, HttpResponse->GetContentAsString()));
-		}
-		else
-		{
-			OnFailure.Broadcast(FEGIK_MatchmakingResponse(), FEGIK_ErrorStruct(ResponseCode, HttpResponse->GetContentAsString()));
-		}
-	}
-	else
-	{
-		OnFailure.Broadcast(FEGIK_MatchmakingResponse(), FEGIK_ErrorStruct(0, "Failed to connect, likely the Matchmaker is down or the URL is incorrect or is not released"));
-	}
+	return EGIK_MatchmakingRequest::ResolveURL(Var_MatchmakingStruct.MatchmakingURL) + TEXT("/tickets");
 }
 
-void UEGIK_CreateMatchmakingTicket::Activate()
+EEGIK_HttpVerb UEGIK_CreateMatchmakingTicket::GetHTTPVerb() const
 {
-	Super::Activate();
-	FHttpModule* Http = &FHttpModule::Get();
-	TSharedRef<IHttpRequest> Request = Http->CreateRequest();
-	Request->SetVerb("POST");
-	Request->SetURL(Var_MatchmakingStruct.MatchmakingURL + "/tickets");
-	Request->SetHeader("Content-Type", "application/json");
-	Request->SetHeader("Authorization", Var_MatchmakingStruct.AuthToken);
-	if(!Var_MatchmakingStruct.RealIp.IsEmpty())
+	return EEGIK_HttpVerb::POST;
+}
+
+FString UEGIK_CreateMatchmakingTicket::GetAuthorizationHeader() const
+{
+	return EGIK_MatchmakingRequest::ResolveAuthToken(Var_MatchmakingStruct.AuthToken);
+}
+
+TMap<FString, FString> UEGIK_CreateMatchmakingTicket::GetAdditionalHeaders() const
+{
+	TMap<FString, FString> Headers;
+	if (!Var_MatchmakingStruct.RealIp.IsEmpty())
 	{
-		Request->SetHeader("X-Real-Ip", Var_MatchmakingStruct.RealIp);
+		Headers.Add(TEXT("X-Real-Ip"), Var_MatchmakingStruct.RealIp);
 	}
-	if(!Var_MatchmakingStruct.PlayerIp.IsEmpty())
+	return Headers;
+}
+
+bool UEGIK_CreateMatchmakingTicket::ValidateRequest(FString& OutErrorMessage) const
+{
+	if (!EGIK_MatchmakingRequest::ValidateConnection(Var_MatchmakingStruct.MatchmakingURL, Var_MatchmakingStruct.AuthToken, OutErrorMessage)
+		|| !EGIK_MatchmakingRequest::ValidateProfile(Var_MatchmakingStruct.Profile, OutErrorMessage))
 	{
-		Request->SetHeader("Player-Ip", Var_MatchmakingStruct.PlayerIp);
+		return false;
 	}
+
+	TSharedPtr<FJsonObject> AttributesObject;
+	return EGIK_MatchmakingAttributeUtils::Build(
+		Var_MatchmakingStruct.StructuredAttributes,
+		Var_MatchmakingStruct.Attributes,
+		AttributesObject,
+		OutErrorMessage);
+}
+
+TSharedPtr<FJsonObject> UEGIK_CreateMatchmakingTicket::BuildRequestBody() const
+{
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
-	JsonObject->SetStringField("profile", Var_MatchmakingStruct.Profile);
+	JsonObject->SetStringField(TEXT("profile"), Var_MatchmakingStruct.Profile);
+	const FString EffectivePlayerIp = Var_MatchmakingStruct.PlayerIp.IsEmpty()
+		? Var_MatchmakingStruct.RealIp
+		: Var_MatchmakingStruct.PlayerIp;
+	if (!EffectivePlayerIp.IsEmpty())
+	{
+		JsonObject->SetStringField(TEXT("player_ip"), EffectivePlayerIp);
+	}
+
 	TSharedPtr<FJsonObject> AttributesJsonObject;
-	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Var_MatchmakingStruct.Attributes);
-	if (FJsonSerializer::Deserialize(Reader, AttributesJsonObject) && AttributesJsonObject.IsValid())
+	FString AttributesError;
+	if (EGIK_MatchmakingAttributeUtils::Build(
+		Var_MatchmakingStruct.StructuredAttributes,
+		Var_MatchmakingStruct.Attributes,
+		AttributesJsonObject,
+		AttributesError))
 	{
 		JsonObject->SetObjectField(TEXT("attributes"), AttributesJsonObject);
 	}
+
+	return JsonObject;
+}
+
+void UEGIK_CreateMatchmakingTicket::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)
+{
+	if (!JsonObject.IsValid())
+	{
+		HandleError(0, TEXT("Failed to parse JSON response"));
+		return;
+	}
+
+	FEGIK_MatchmakingResponse Response;
+	Response.TicketId = JsonObject->GetStringField(TEXT("id"));
+	Response.GameProfile = JsonObject->GetStringField(TEXT("profile"));
+	FDateTime::ParseIso8601(*JsonObject->GetStringField(TEXT("created_at")), Response.CreatedAt);
+	JsonObject->TryGetStringField(TEXT("group_id"), Response.GroupId);
+	JsonObject->TryGetStringField(TEXT("team_id"), Response.TeamId);
+	JsonObject->TryGetStringField(TEXT("match_id"), Response.MatchId);
+	JsonObject->TryGetStringField(TEXT("status"), Response.Status);
+	JsonObject->TryGetStringField(TEXT("player_ip"), Response.IP);
+
+	const TSharedPtr<FJsonObject>* AssignmentObject;
+	if (JsonObject->HasTypedField<EJson::Object>(TEXT("assignment")))
+	{
+		if (JsonObject->TryGetObjectField(TEXT("assignment"), AssignmentObject))
+		{
+			Response.Assignment = FEGIK_AssignmentStruct(*AssignmentObject);
+		}
+		else
+		{
+			Response.Assignment = FEGIK_AssignmentStruct("null");
+		}
+	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to parse attributes JSON string."));
+		Response.Assignment = FEGIK_AssignmentStruct("null");
 	}
-	FString JsonString;
-	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
-	FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
-	Request->SetContentAsString(JsonString);
-	UE_LOG(LogTemp, Warning, TEXT("Request: %s"), *JsonString);
-	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_CreateMatchmakingTicket::OnResponseReceived);
-	if(!Request->ProcessRequest())
-	{
-		OnFailure.Broadcast(FEGIK_MatchmakingResponse(), FEGIK_ErrorStruct(0, "Failed to process request"));
-		SetReadyToDestroy();
-		MarkAsGarbage();
-	}
+
+	OnSuccess.Broadcast(Response, FEGIK_ErrorStruct());
+}
+
+void UEGIK_CreateMatchmakingTicket::HandleError(int32 ErrorCode, const FString& ErrorMessage)
+{
+	OnFailure.Broadcast(FEGIK_MatchmakingResponse(), FEGIK_ErrorStruct(ErrorCode, ErrorMessage));
+}
+
+void UEGIK_CreateMatchmakingTicket::HandleRateLimited(const FString& ResponseContent)
+{
+	OnRateLimited.Broadcast(FEGIK_MatchmakingResponse(), FEGIK_ErrorStruct(429, ResponseContent));
 }

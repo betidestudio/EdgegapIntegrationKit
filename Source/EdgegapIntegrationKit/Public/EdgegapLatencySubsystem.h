@@ -27,11 +27,15 @@ struct FIPPortInfo
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Edgegap Integration Kit | Latency")
 	float Latency;  // To store the calculated latency
 
-	FIPPortInfo(): Port(0), Latency(0)
+	/** True only when the beacon returned a valid UDP echo response. */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Edgegap Integration Kit | Latency")
+	bool bSucceeded;
+
+	FIPPortInfo(): Port(0), Latency(-1.0f), bSucceeded(false)
 	{
 	}
 
-	FIPPortInfo(const FString& InIPAddress, int32 InPort) : IPAddress(InIPAddress), Port(InPort), Latency(0)
+	FIPPortInfo(const FString& InIPAddress, int32 InPort) : IPAddress(InIPAddress), Port(InPort), Latency(-1.0f), bSucceeded(false)
 	{
 	}
 };
@@ -55,13 +59,15 @@ protected:
 	virtual void Deinitialize() override;
 
 private:
-	FSocket* UDPSocket;
+	FSocket* UDPSocket = nullptr;
 	double StartTime;
+	uint32 ExpectedRemoteIp = 0;
+	int32 ExpectedRemotePort = 0;
 
 	TArray<FIPPortInfo> ServersToTest;
 	int32 CurrentServerIndex = -1;
 
-	bool InitializeSocket(int32 Port);
+	bool InitializeSocket();
 
 	void SendPingToServer(const FIPPortInfo& ServerInfo);
 

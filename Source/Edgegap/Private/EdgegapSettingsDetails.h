@@ -113,6 +113,14 @@ public:
 	static void CreateVersion(FString AppName, FString VersionName, FString API_key, FString RegistryURL, FString ImageRepository, FString Tag, FString PrivateUsername, FString PrivateToken);
 	static void onCreateVersionComplete(FHttpRequestPtr RequestPtr, FHttpResponsePtr ResponsePtr, bool bWasSuccessful);
 
+	// Docker Build pipeline
+	static void DockerBuildAndPush();
+	static void DockerBuild_LoginToGHCR(FString GitHubUsername, FString GitHubPAT);
+	static void DockerBuild_Build(FString ImageName, FString ProjectDir);
+	static FString GenerateMultiStageDockerfile();
+	static FString GenerateDockerBuildStartServerScript();
+	static FString GenerateDockerIgnoreContent();
+
 	void Request_DeployApp(FString AppName, FString VersionName, FString API_key, TSharedPtr<SButton> InCreateNewDeployment_SBtn);
 
 	void Request_GetDeploymentsInfo(FString API_key, TSharedPtr<SButton> InRefreshBtn);
@@ -126,16 +134,12 @@ public:
 
 	FString GetApplicationImageFilename(const bool bInIsGameOverride = false)
 	{
-		const FString& PlatformName = FModuleManager::GetModuleChecked<ITargetPlatformModule>("WindowsTargetPlatform").GetTargetPlatforms()[0]->PlatformName();
-
 		FString Filename = FString(EDGEGAP_MODULE_PATH) / FString("Resources/ApplicationImage.png");
 		return FPaths::ConvertRelativePathToFull(Filename);
 	}
 
 	FString GetBannerImageFilePath()
 	{
-		const FString& PlatformName = FModuleManager::GetModuleChecked<ITargetPlatformModule>("WindowsTargetPlatform").GetTargetPlatforms()[0]->PlatformName();
-
 		FString Filename = FString(EDGEGAP_MODULE_PATH) / FString("Resources/BannerImage.png");
 		return FPaths::ConvertRelativePathToFull(Filename);
 	}

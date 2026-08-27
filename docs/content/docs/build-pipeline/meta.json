@@ -1,0 +1,4 @@
+{
+  "title": "Build Pipeline",
+  "pages": ["local-build", "docker-build"]
+}

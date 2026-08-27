@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" fill="none">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1600" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827"/>
+      <stop offset="1" stop-color="#1f2937"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#g)"/>
+  <rect x="60" y="60" width="1480" height="780" rx="16" fill="#0b1220" stroke="#334155" stroke-width="2"/>
+  <text x="800" y="410" fill="#e5e7eb" font-size="56" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-weight="700">Screenshot Placeholder</text>
+  <text x="800" y="480" fill="#93c5fd" font-size="40" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif">deployment v1</text>
+  <text x="800" y="560" fill="#9ca3af" font-size="28" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif">Replace with Unreal Editor capture</text>
+</svg>

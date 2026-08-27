@@ -1,5 +1,4 @@
-﻿// Copyright (c) 2024 Betide Studio. All Rights Reserved.
-
+// Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_ListRelaySessions.h"
 
@@ -10,63 +9,43 @@ UEGIK_ListRelaySessions* UEGIK_ListRelaySessions::ListRelaySessions(int32 PageNu
 	return Node;
 }
 
-void UEGIK_ListRelaySessions::Activate()
+FString UEGIK_ListRelaySessions::GetEndpointURL() const
 {
-	Super::Activate();
-	FHttpModule* Http = &FHttpModule::Get();
-	TSharedRef<IHttpRequest> Request = Http->CreateRequest();
-	Request->SetVerb("GET");
-	Request->SetURL("https://api.edgegap.com/v1/relays/sessions");
-	Request->SetHeader("Authorization", UEGIKBlueprintFunctionLibrary::GetAuthorizationKey());
-	Request->SetHeader("Content-Type", "application/json");
-	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_ListRelaySessions::OnResponseReceived);
-	if (!Request->ProcessRequest())
-	{
-		OnFailure.Broadcast(FEGIK_ListRelaySessionsOutput(), FEGIK_ErrorStruct(0, "Failed to process request"));
-		SetReadyToDestroy();
-		MarkAsGarbage();
-	}
+	return TEXT("https://api.edgegap.com/v1/relays/sessions");
 }
 
-void UEGIK_ListRelaySessions::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest,
-	TSharedPtr<IHttpResponse> HttpResponse, bool bArg)
+EEGIK_HttpVerb UEGIK_ListRelaySessions::GetHTTPVerb() const
 {
-	if (HttpResponse.IsValid())
+	return EEGIK_HttpVerb::GET;
+}
+
+void UEGIK_ListRelaySessions::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)
+{
+	if (JsonObject.IsValid())
 	{
-		if (EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
+		FEGIK_ListRelaySessionsOutput Output;
+		Output.RelaySessions.Empty();
+		TArray<TSharedPtr<FJsonValue>> RelaySessionsArray = JsonObject->GetArrayField(TEXT("sessions"));
+		for (auto RelaySessionValue : RelaySessionsArray)
 		{
-			TSharedPtr<FJsonObject> JsonObject;
-			TSharedRef<TJsonReader<TCHAR>> Reader = TJsonReaderFactory<TCHAR>::Create(HttpResponse->GetContentAsString());
-			if (FJsonSerializer::Deserialize(Reader, JsonObject))
-			{
-				FEGIK_ListRelaySessionsOutput Output;
-				Output.RelaySessions.Empty();
-				TArray<TSharedPtr<FJsonValue>> RelaySessionsArray = JsonObject->GetArrayField(TEXT("sessions"));
-				for(auto RelaySessionValue : RelaySessionsArray)
-				{
-					Output.RelaySessions.Add(RelaySessionValue->AsObject());
-				}
-				TSharedPtr<FJsonObject> PaginationObject = JsonObject->GetObjectField(TEXT("pagination"));
-				Output.Pagination.Number = PaginationObject->GetIntegerField(TEXT("number"));
-				Output.Pagination.NextPageNumber = PaginationObject->GetIntegerField(TEXT("next_page_number"));
-				Output.Pagination.PreviousPageNumber = PaginationObject->GetIntegerField(TEXT("previous_page_number"));
-				Output.Pagination.TotalPages = PaginationObject->GetObjectField(TEXT("paginator"))->GetIntegerField(TEXT("num_pages"));
-				Output.Pagination.bHasNextPage = PaginationObject->GetBoolField(TEXT("has_next"));
-				Output.Pagination.bHasPreviousPage = PaginationObject->GetBoolField(TEXT("has_previous"));
-				OnSuccess.Broadcast(Output, FEGIK_ErrorStruct());
-			}
-			else
-			{
-				OnFailure.Broadcast(FEGIK_ListRelaySessionsOutput(), FEGIK_ErrorStruct(0, "Failed to deserialize response"));
-			}
+			Output.RelaySessions.Add(RelaySessionValue->AsObject());
 		}
-		else
-		{
-			OnFailure.Broadcast(FEGIK_ListRelaySessionsOutput(), FEGIK_ErrorStruct(HttpResponse->GetResponseCode(), HttpResponse->GetContentAsString()));
-		}
+		TSharedPtr<FJsonObject> PaginationObject = JsonObject->GetObjectField(TEXT("pagination"));
+		Output.Pagination.Number = PaginationObject->GetIntegerField(TEXT("number"));
+		Output.Pagination.NextPageNumber = PaginationObject->GetIntegerField(TEXT("next_page_number"));
+		Output.Pagination.PreviousPageNumber = PaginationObject->GetIntegerField(TEXT("previous_page_number"));
+		Output.Pagination.TotalPages = PaginationObject->GetObjectField(TEXT("paginator"))->GetIntegerField(TEXT("num_pages"));
+		Output.Pagination.bHasNextPage = PaginationObject->GetBoolField(TEXT("has_next"));
+		Output.Pagination.bHasPreviousPage = PaginationObject->GetBoolField(TEXT("has_previous"));
+		OnSuccess.Broadcast(Output, FEGIK_ErrorStruct());
 	}
 	else
 	{
-		OnFailure.Broadcast(FEGIK_ListRelaySessionsOutput(), FEGIK_ErrorStruct(0, "Failed to process request"));
+		OnFailure.Broadcast(FEGIK_ListRelaySessionsOutput(), FEGIK_ErrorStruct(0, "Failed to deserialize response"));
 	}
+}
+
+void UEGIK_ListRelaySessions::HandleError(int32 ErrorCode, const FString& ErrorMessage)
+{
+	OnFailure.Broadcast(FEGIK_ListRelaySessionsOutput(), FEGIK_ErrorStruct(ErrorCode, ErrorMessage));
 }

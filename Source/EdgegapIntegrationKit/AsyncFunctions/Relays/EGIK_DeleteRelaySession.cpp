@@ -1,5 +1,4 @@
-﻿// Copyright (c) 2024 Betide Studio. All Rights Reserved.
-
+// Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_DeleteRelaySession.h"
 
@@ -10,40 +9,22 @@ UEGIK_DeleteRelaySession* UEGIK_DeleteRelaySession::DeleteRelaySession(FString S
 	return Node;
 }
 
-void UEGIK_DeleteRelaySession::Activate()
+FString UEGIK_DeleteRelaySession::GetEndpointURL() const
 {
-	Super::Activate();
-	FHttpModule* Http = &FHttpModule::Get();
-	TSharedRef<IHttpRequest> Request = Http->CreateRequest();
-	Request->SetVerb("DELETE");
-	Request->SetURL("https://api.edgegap.com/v1/relays/sessions/" + Var_SessionId);
-	Request->SetHeader("Authorization", UEGIKBlueprintFunctionLibrary::GetAuthorizationKey());
-	Request->SetHeader("Content-Type", "application/json");
-	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_DeleteRelaySession::OnResponseReceived);
-	if (!Request->ProcessRequest())
-	{
-		OnFailure.Broadcast(FEGIK_ErrorStruct(0, "Failed to process request"));
-		SetReadyToDestroy();
-		MarkAsGarbage();
-	}
+	return FString::Printf(TEXT("https://api.edgegap.com/v1/relays/sessions/%s"), *Var_SessionId);
 }
 
-void UEGIK_DeleteRelaySession::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest,
-	TSharedPtr<IHttpResponse> HttpResponse, bool bArg)
+EEGIK_HttpVerb UEGIK_DeleteRelaySession::GetHTTPVerb() const
 {
-	if (HttpResponse.IsValid())
-	{
-		if (EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
-		{
-			OnSuccess.Broadcast(FEGIK_ErrorStruct());
-		}
-		else
-		{
-			OnFailure.Broadcast(FEGIK_ErrorStruct(HttpResponse->GetResponseCode(), HttpResponse->GetContentAsString()));
-		}
-	}
-	else
-	{
-		OnFailure.Broadcast(FEGIK_ErrorStruct(0, "Failed to process request"));
-	}
+	return EEGIK_HttpVerb::DELETE;
+}
+
+void UEGIK_DeleteRelaySession::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)
+{
+	OnSuccess.Broadcast(FEGIK_ErrorStruct());
+}
+
+void UEGIK_DeleteRelaySession::HandleError(int32 ErrorCode, const FString& ErrorMessage)
+{
+	OnFailure.Broadcast(FEGIK_ErrorStruct(ErrorCode, ErrorMessage));
 }

@@ -1,0 +1,39 @@
+---
+title: Installation
+description: Install Edgegap Integration Kit in Unreal Engine and verify it is loaded
+---
+
+## Goal
+
+Enable the plugin in your Unreal project and verify async nodes are available.
+
+## Steps (Editor)
+
+1. Copy plugin to `YourProject/Plugins/EdgegapIntegrationKit`.
+2. Open Unreal Editor.
+3. Go to `Edit > Plugins`.
+4. Search `Edgegap`.
+5. Enable `Edgegap` and `EdgegapIntegrationKit`.
+6. Restart the editor.
+
+{/* ![Plugins window showing Edgegap enabled](/screenshots/getting-started-installation.png) */}
+
+## Verify Quickly
+
+1. Open any Blueprint graph.
+2. Right click and search `CreateDeploymentV2`.
+3. Confirm node appears under `Edgegap Integration Kit | Deployment`.
+
+## C++ Verify
+
+```cpp
+#include "Modules/ModuleManager.h"
+
+const bool bLoaded = FModuleManager::Get().IsModuleLoaded("EdgegapIntegrationKit");
+UE_LOG(LogTemp, Log, TEXT("EdgegapIntegrationKit loaded: %s"), bLoaded ? TEXT("true") : TEXT("false"));
+```
+
+## Expected Result
+
+- Plugin category appears in Project Settings.
+- Blueprint async nodes are searchable.

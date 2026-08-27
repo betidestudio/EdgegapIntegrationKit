@@ -432,27 +432,25 @@ public:
 	virtual void CreateUcmdTask(const FString& CommandLine, const FText& PlatformDisplayName, const FText& TaskName, const FText& TaskShortName, const FSlateBrush* TaskIcon, bool PowerShell, UcmdTaskResultCallack ResultCallback, const FString& ResultLocation)
 	{
 
-		FString CmdExe = "";
+		FString CmdExe;
+		FString FullCommandLine;
 		#if PLATFORM_WINDOWS
 				if (PowerShell)
+				{
 					CmdExe = TEXT("powershell");
-				else
-					CmdExe = TEXT("cmd.exe");
-		#elif PLATFORM_LINUX
-				FString CmdExe = TEXT("/bin/bash");
-		#else
-				FString CmdExe = TEXT("/bin/sh");
-		#endif
-
-				FString FullCommandLine = "";
-		#if PLATFORM_WINDOWS
-				if (PowerShell)
 					FullCommandLine = FString::Printf(TEXT("-command \"%s\""), *CommandLine);
+				}
 				else
+				{
+					CmdExe = TEXT("cmd.exe");
 					FullCommandLine = FString::Printf(TEXT("/c \"%s\""), *CommandLine);
-
+				}
+		#elif PLATFORM_LINUX
+				CmdExe = TEXT("/bin/bash");
+				FullCommandLine = FString::Printf(TEXT("-c \"%s\""), *CommandLine);
 		#else
-				FString FullCommandLine = FString::Printf(TEXT("%s"), *CommandLine);
+				CmdExe = TEXT("/bin/sh");
+				FullCommandLine = FString::Printf(TEXT("-c \"%s\""), *CommandLine);
 		#endif
 
 

@@ -1,0 +1,44 @@
+---
+title: Quick Start
+description: Deploy one server, poll status, and connect using returned endpoint
+---
+
+## Goal
+
+Deploy via v2 API and read final connection endpoint in Unreal.
+
+## Blueprint Flow
+
+1. Build `FEGIK_CreateDeploymentV2Struct`.
+2. Call `CreateDeploymentV2`.
+3. Save `RequestId` from success.
+4. Poll with `GetDeploymentStatusAndInfo` until ready.
+5. Read `FQDN` and `Ports` from response.
+
+{/* ![Quick start deployment blueprint flow](/screenshots/quick-start-deploy.png) */}
+
+## Minimal C++
+
+```cpp
+#include "Deployments/EGIK_CreateDeploymentV2.h"
+#include "Deployments/EGIK_DeploymentStatusAndInfo.h"
+
+FEGIK_CreateDeploymentV2Struct Req;
+Req.Application = TEXT("my-game-server");
+Req.Version = TEXT("1.0.0");
+
+FEGIK_DeploymentUser User;
+User.UserType = EEGIK_DeploymentUserType::IpAddress;
+User.IpAddress = TEXT("1.1.1.1");
+Req.Users.Add(User);
+
+UEGIK_CreateDeploymentV2* CreateNode = UEGIK_CreateDeploymentV2::CreateDeploymentV2(Req);
+CreateNode->OnSuccess.AddDynamic(this, &UMySubsystem::OnDeploymentCreated);
+CreateNode->Activate();
+```
+
+## Success Criteria
+
+- `RequestId` received.
+- Deployment status reaches ready state.
+- You can construct a connect address from `FQDN` + game port.

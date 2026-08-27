@@ -1,5 +1,4 @@
-﻿// Copyright (c) 2024 Betide Studio. All Rights Reserved.
-
+// Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_GetIpInformationBulk.h"
 
@@ -10,77 +9,72 @@ UEGIK_GetIpInformationBulk* UEGIK_GetIpInformationBulk::GetIpInformationBulk(TAr
 	return Node;
 }
 
-void UEGIK_GetIpInformationBulk::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest, TSharedPtr<IHttpResponse> HttpResponse, bool bArg)
+FString UEGIK_GetIpInformationBulk::GetEndpointURL() const
 {
-	if (HttpResponse.IsValid())
-	{
-		if (EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
-		{
-			TArray<FEGIK_IpLookUpAddress> IpAddresses;
-			TSharedPtr<FJsonObject> JsonObject;
-			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(HttpResponse->GetContentAsString());
-			if (FJsonSerializer::Deserialize(Reader, JsonObject))
-			{
-				TArray<TSharedPtr<FJsonValue>> JsonArray = JsonObject->GetArrayField(TEXT("addresses"));
-				for (TSharedPtr<FJsonValue> JsonValue : JsonArray)
-				{
-					TSharedPtr<FJsonObject> JsonObj = JsonValue->AsObject();
-					FEGIK_IpLookUpAddress IpAddress;
-					IpAddress.IP = JsonObj->GetStringField(TEXT("ip_address"));
-					IpAddress.Type = JsonObj->GetStringField(TEXT("type"));
-					IpAddress.Location.Continent.Code = JsonObj->GetObjectField(TEXT("location"))->GetObjectField(TEXT("continent"))->GetStringField(TEXT("code"));
-					IpAddress.Location.Continent.Name = JsonObj->GetObjectField(TEXT("location"))->GetObjectField(TEXT("continent"))->GetStringField(TEXT("name"));
-					IpAddress.Location.Country.Code = JsonObj->GetObjectField(TEXT("location"))->GetObjectField(TEXT("country"))->GetStringField(TEXT("code"));
-					IpAddress.Location.Country.Name = JsonObj->GetObjectField(TEXT("location"))->GetObjectField(TEXT("country"))->GetStringField(TEXT("name"));
-					IpAddress.Location.LatitudeLongitude.Latitude = JsonObj->GetObjectField(TEXT("location"))->GetNumberField(TEXT("latitude"));
-					IpAddress.Location.LatitudeLongitude.Longitude = JsonObj->GetObjectField(TEXT("location"))->GetNumberField(TEXT("longitude"));
-					IpAddresses.Add(IpAddress);
-				}
-				OnSuccess.Broadcast(IpAddresses, FEGIK_ErrorStruct());
-			}
-			else
-			{
-				OnFailure.Broadcast(TArray<FEGIK_IpLookUpAddress>(), FEGIK_ErrorStruct(0, "Failed to deserialize response"));
-			}
-		}
-		else
-		{
-			OnFailure.Broadcast(TArray<FEGIK_IpLookUpAddress>(), FEGIK_ErrorStruct(HttpResponse->GetResponseCode(), "Failed to get ip information"));
-		}
-	}
-	else
-	{
-		OnFailure.Broadcast(TArray<FEGIK_IpLookUpAddress>(), FEGIK_ErrorStruct(0, "Failed to deserialize response"));
-	}
-	SetReadyToDestroy();
-	MarkAsGarbage();
+	return TEXT("https://api.edgegap.com/v1/ips/lookup");
 }
 
-void UEGIK_GetIpInformationBulk::Activate()
+EEGIK_HttpVerb UEGIK_GetIpInformationBulk::GetHTTPVerb() const
 {
-	Super::Activate();
-	FHttpModule* Http = &FHttpModule::Get();
-	TSharedRef<IHttpRequest> Request = Http->CreateRequest();
-	Request->SetVerb("POST");
-	Request->SetURL("https://api.edgegap.com/v1/ips/lookup");
-	Request->SetHeader("Content-Type", "application/json");
-	Request->SetHeader("Authorization", UEGIKBlueprintFunctionLibrary::GetAuthorizationKey());
+	return EEGIK_HttpVerb::POST;
+}
+
+TSharedPtr<FJsonObject> UEGIK_GetIpInformationBulk::BuildRequestBody() const
+{
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
-	TArray<TSharedPtr<FJsonValue>> IpAddressesArray;
-	for (auto val : Var_IpAddresses)
+	JsonObject->SetArrayField(TEXT("addresses"), StringArrayToJsonArray(Var_IpAddresses));
+	return JsonObject;
+}
+
+void UEGIK_GetIpInformationBulk::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)
+{
+	if (!JsonObject.IsValid())
 	{
-		IpAddressesArray.Add(MakeShareable(new FJsonValueString(val)));
+		HandleError(0, TEXT("Failed to parse JSON response"));
+		return;
 	}
-	JsonObject->SetArrayField("addresses", IpAddressesArray);
-	FString OutputString;
-	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
-	FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
-	Request->SetContentAsString(OutputString);
-	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_GetIpInformationBulk::OnResponseReceived);
-	if (!Request->ProcessRequest())
+
+	TArray<FEGIK_IpLookUpAddress> IpAddresses;
+
+	if (JsonObject->HasField(TEXT("addresses")))
 	{
-		OnFailure.Broadcast(TArray<FEGIK_IpLookUpAddress>(), FEGIK_ErrorStruct(0, "Failed to process request"));
-		SetReadyToDestroy();
-		MarkAsGarbage();
+		TArray<TSharedPtr<FJsonValue>> JsonArray = JsonObject->GetArrayField(TEXT("addresses"));
+		for (const TSharedPtr<FJsonValue>& JsonValue : JsonArray)
+		{
+			TSharedPtr<FJsonObject> JsonObj = JsonValue->AsObject();
+			if (!JsonObj.IsValid()) continue;
+
+			FEGIK_IpLookUpAddress IpAddress;
+			IpAddress.IP = JsonObj->GetStringField(TEXT("ip_address"));
+			IpAddress.Type = JsonObj->GetStringField(TEXT("type"));
+
+			if (JsonObj->HasField(TEXT("location")))
+			{
+				TSharedPtr<FJsonObject> LocationObj = JsonObj->GetObjectField(TEXT("location"));
+				if (LocationObj->HasField(TEXT("continent")))
+				{
+					TSharedPtr<FJsonObject> ContinentObj = LocationObj->GetObjectField(TEXT("continent"));
+					IpAddress.Location.Continent.Code = ContinentObj->GetStringField(TEXT("code"));
+					IpAddress.Location.Continent.Name = ContinentObj->GetStringField(TEXT("name"));
+				}
+				if (LocationObj->HasField(TEXT("country")))
+				{
+					TSharedPtr<FJsonObject> CountryObj = LocationObj->GetObjectField(TEXT("country"));
+					IpAddress.Location.Country.Code = CountryObj->GetStringField(TEXT("code"));
+					IpAddress.Location.Country.Name = CountryObj->GetStringField(TEXT("name"));
+				}
+				IpAddress.Location.LatitudeLongitude.Latitude = LocationObj->GetNumberField(TEXT("latitude"));
+				IpAddress.Location.LatitudeLongitude.Longitude = LocationObj->GetNumberField(TEXT("longitude"));
+			}
+
+			IpAddresses.Add(IpAddress);
+		}
 	}
+
+	OnSuccess.Broadcast(IpAddresses, FEGIK_ErrorStruct());
+}
+
+void UEGIK_GetIpInformationBulk::HandleError(int32 ErrorCode, const FString& ErrorMessage)
+{
+	OnFailure.Broadcast(TArray<FEGIK_IpLookUpAddress>(), FEGIK_ErrorStruct(ErrorCode, ErrorMessage));
 }

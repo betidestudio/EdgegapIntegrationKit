@@ -1,0 +1,118 @@
+---
+title: Profiles & Attributes
+description: Keep profile strings and attribute JSON in sync with your Matchmaker configuration
+---
+
+<Callout type="info">
+Edgegap Matchmaker is in active development with frequent updates. For the latest rule types, expansion options, and example configurations for competitive, cooperative, and social games, see the [official Edgegap Matchmaking docs](https://docs.edgegap.com/learn/matchmaking) and [Configuration guide](https://docs.edgegap.com/learn/matchmaking/matchmaker-in-depth#configuration).
+</Callout>
+
+## The Golden Rule
+
+`Profile` and the attributes in every Unreal ticket/group request **must exactly match** your Matchmaker configuration JSON. A typo in the profile name or a missing attribute key will cause tickets to fail or never match.
+
+## How Profiles Map to Unreal
+
+Each profile in your matchmaker config is an isolated queue. When creating a ticket or group, you pass the profile name as a string:
+
+| Matchmaker Config | Unreal `Profile` Value |
+|---|---|
+| `"profiles": { "simple-example": { ... } }` | `"simple-example"` |
+| `"profiles": { "ranked-2v2": { ... } }` | `"ranked-2v2"` |
+| `"profiles": { "custom-lobby": { ... } }` | `"custom-lobby"` |
+
+## How Rules Map to Attributes
+
+Each rule in your config expects specific attribute keys and types in the ticket:
+
+| Rule Type | Config Key | Ticket Attribute | Type |
+|---|---|---|---|
+| `player_count` | `match_size` | *(no attribute needed)* | — |
+| `latencies` | `beacons` | `"beacons": {"City": ms}` | Object of floats |
+| `number_difference` | e.g. `elo_rating` | `"elo_rating": 1337` | Number |
+| `string_equality` | e.g. `selected_game_mode` | `"selected_game_mode": "TDM"` | String |
+| `intersection` | e.g. `selected_map` | `"selected_map": ["DustII", "Airport"]` | Array of strings |
+
+### Example: Simple Profile
+
+Config:
+```json
+{
+  "profiles": {
+    "simple-example": {
+      "rules": {
+        "initial": {
+          "match_size": { "type": "player_count", "attributes": { "team_count": 1, "min_team_size": 2, "max_team_size": 2 } },
+          "beacons": { "type": "latencies", "attributes": { "difference": 100, "max_latency": 200 } }
+        }
+      }
+    }
+  }
+}
+```
+
+Matching Unreal attributes:
+```json
+{
+  "beacons": { "Montreal": 12.3, "Toronto": 45.6, "Chicago": 87.3 }
+}
+```
+
+### Example: Advanced Profile
+
+Config with `latencies`, `number_difference`, `string_equality`, and `intersection`:
+
+Matching Unreal attributes:
+```json
+{
+  "beacons": { "Montreal": 12.3, "Toronto": 45.6 },
+  "elo_rating": 1337,
+  "selected_game_mode": "quickplay",
+  "selected_map": ["DustII", "Airport", "BankVault"],
+  "backfill_group_size": ["new", "1"]
+}
+```
+
+{/* ![Building attributes JSON in Blueprint to match profile rules](/screenshots/matchmaking-profiles.png) */}
+
+## Blueprint Pattern
+
+Use the typed **Make Matchmaking ... Attribute** nodes so Blueprints do not need to construct or escape JSON:
+
+1. Use **Make Matchmaking Number Attribute** for values such as `elo_rating`.
+2. Use **Make Matchmaking String Attribute** for values such as `selected_game_mode`.
+3. Use **Make Matchmaking String Array Attribute** for intersection rules such as `selected_map`.
+4. Use **Make Matchmaking Beacon Latencies Attribute** for the beacon-name-to-latency map.
+5. Add the results to `StructuredAttributes.Values` on `CreateGroup` or `CreateGroupMember`.
+
+Raw `Attributes` JSON is still supported for backward compatibility and uncommon nested structures. Do not populate both forms on one request; EGIK rejects that locally instead of choosing one silently.
+
+EGIK also rejects duplicate or blank attribute names, empty intersection arrays, invalid beacon maps, and non-finite numbers locally. Edgegap still performs the authoritative profile-specific checks because only the running Matchmaker knows which keys and types its configuration requires.
+
+For a non-blocking runtime comparison, enable `bLogProfileDebugInfo` on a ticket, group, group-member, or legacy group-ticket creation request. EGIK queries `{MatchmakerURL}/swagger/v1/swagger.json`, caches the generated profile schema briefly, and logs missing, unknown, and incorrectly typed `StructuredAttributes`. Diagnostics never change whether the actual matchmaking request is submitted.
+
+## C++ Typed Attributes
+
+```cpp
+FEGIK_CreateGroupRequest Req;
+Req.Profile = TEXT("quickplay");
+Req.StructuredAttributes.Values.Add(
+    UEGIK_MatchmakingAttributeLibrary::MakeNumberAttribute(TEXT("elo_rating"), 1337));
+Req.StructuredAttributes.Values.Add(
+    UEGIK_MatchmakingAttributeLibrary::MakeStringAttribute(TEXT("selected_game_mode"), TEXT("quickplay")));
+Req.StructuredAttributes.Values.Add(
+    UEGIK_MatchmakingAttributeLibrary::MakeStringArrayAttribute(
+        TEXT("selected_map"), {TEXT("DustII"), TEXT("Airport")}));
+```
+
+## Rule Expansions
+
+Expansions relax rules over time to find matches faster. They're configured in your matchmaker JSON, not in Unreal — your client doesn't need to do anything. Example: after 30s in queue, `elo_rating` difference expands from 50 to 150, and `max_latency` increases from 125 to 250.
+
+## Checklist
+
+- Profile name in Unreal exactly matches config key (case sensitive).
+- All required attribute keys are present.
+- Types match: numbers for `number_difference`, strings for `string_equality`, arrays for `intersection`, object of floats for `latencies`.
+- Beacon city names match what `GetLocationBeacons` returns.
+- `player_count` rule does NOT require any attribute — it's config-only.

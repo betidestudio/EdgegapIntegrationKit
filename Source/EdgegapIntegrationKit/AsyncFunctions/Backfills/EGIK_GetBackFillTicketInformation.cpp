@@ -1,12 +1,10 @@
-﻿// Copyright (c) Betide Studio. All Rights Reserved.
-
+// Copyright (c) 2025-2026 Betide Studio. All Rights Reserved.
 
 #include "EGIK_GetBackFillTicketInformation.h"
+#include "EGIK_JsonKeyCompat.h"
+#include "EGIK_MatchmakingRequestUtils.h"
 
-#include "EGIKBlueprintFunctionLibrary.h"
-
-UEGIK_GetBackFillTicketInformation* UEGIK_GetBackFillTicketInformation::GetBackFillTicketInformation(
-	const FString& backfillId, const FString& MatchmakingURL, const FString& AuthToken)
+UEGIK_GetBackFillTicketInformation* UEGIK_GetBackFillTicketInformation::GetBackFillTicketInformation(const FString& backfillId, const FString& MatchmakingURL, const FString& AuthToken)
 {
 	UEGIK_GetBackFillTicketInformation* Node = NewObject<UEGIK_GetBackFillTicketInformation>();
 	Node->Var_BackfillId = backfillId;
@@ -15,109 +13,118 @@ UEGIK_GetBackFillTicketInformation* UEGIK_GetBackFillTicketInformation::GetBackF
 	return Node;
 }
 
-void UEGIK_GetBackFillTicketInformation::OnResponseReceived(TSharedPtr<IHttpRequest> HttpRequest,
-	TSharedPtr<IHttpResponse> HttpResponse, bool bArg)
+FString UEGIK_GetBackFillTicketInformation::GetEndpointURL() const
 {
-	FEGIK_GetBackFillTicketInformationResponse Response;
-	if (HttpResponse.IsValid())
+	return FString::Printf(
+		TEXT("%s/backfills/%s"),
+		*EGIK_MatchmakingRequest::ResolveURL(Var_MatchmakingURL),
+		*Var_BackfillId);
+}
+
+EEGIK_HttpVerb UEGIK_GetBackFillTicketInformation::GetHTTPVerb() const
+{
+	return EEGIK_HttpVerb::GET;
+}
+
+FString UEGIK_GetBackFillTicketInformation::GetAuthorizationHeader() const
+{
+	return EGIK_MatchmakingRequest::ResolveAuthToken(Var_AuthToken);
+}
+
+bool UEGIK_GetBackFillTicketInformation::ValidateRequest(FString& OutErrorMessage) const
+{
+	return EGIK_MatchmakingRequest::ValidateConnection(Var_MatchmakingURL, Var_AuthToken, OutErrorMessage)
+		&& EGIK_MatchmakingRequest::ValidateResourceId(TEXT("BackfillId"), Var_BackfillId, OutErrorMessage);
+}
+
+void UEGIK_GetBackFillTicketInformation::ProcessResponse(int32 HttpStatusCode, TSharedPtr<FJsonObject> JsonObject)
+{
+	if (!JsonObject.IsValid())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Response: %s"), *HttpResponse->GetContentAsString());
-		const int32 ResponseCode = HttpResponse->GetResponseCode();
-		if (EHttpResponseCodes::IsOk(ResponseCode))
+		HandleError(0, TEXT("Failed to parse JSON response"));
+		return;
+	}
+
+	FEGIK_GetBackFillTicketInformationResponse Response;
+	if (!JsonObject->TryGetStringField(TEXT("id"), Response.Id)
+		|| !JsonObject->TryGetStringField(TEXT("profile"), Response.Profile)
+		|| !JsonObject->TryGetStringField(TEXT("status"), Response.Status))
+	{
+		HandleError(0, TEXT("Edgegap returned a successful Get Backfill response without required id, profile, or status fields."));
+		return;
+	}
+
+	const TSharedPtr<FJsonObject>* TicketsObject = nullptr;
+	if (JsonObject->TryGetObjectField(TEXT("tickets"), TicketsObject) && TicketsObject && (*TicketsObject).IsValid())
+	{
+		for (const TPair<FString, TSharedPtr<FJsonValue>>& TicketPair : (*TicketsObject)->Values)
 		{
-			TSharedPtr<FJsonObject> JsonObject;
-			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(HttpResponse->GetContentAsString());
-			if (FJsonSerializer::Deserialize(Reader, JsonObject))
+			if (!TicketPair.Value.IsValid() || TicketPair.Value->Type != EJson::Object)
 			{
-				Response.Id = JsonObject->GetStringField(TEXT("id"));
-				Response.Profile = JsonObject->GetStringField(TEXT("profile"));
-				Response.Status = JsonObject->GetStringField(TEXT("status"));
+				HandleError(0, FString::Printf(TEXT("Get Backfill response ticket '%s' was not a JSON object."), *TicketPair.Key));
+				return;
+			}
+			const TSharedPtr<FJsonObject> TicketObject = TicketPair.Value->AsObject();
+			if (!TicketObject.IsValid())
+			{
+				HandleError(0, FString::Printf(TEXT("Get Backfill response ticket '%s' was not a JSON object."), *TicketPair.Key));
+				return;
+			}
+			Response.Tickets.Add(EGIK_JSONKEY(TicketPair.Key), FEGIK_MatchmakingResponse(TicketObject));
+		}
+	}
 
-				if (JsonObject->HasField(TEXT("tickets")))
-				{
-					TSharedPtr<FJsonObject> TicketsObject = JsonObject->GetObjectField(TEXT("tickets"));
-					for (const auto& TicketPair : TicketsObject->Values)
-					{
-						Response.Tickets.Add(TicketPair.Key, TicketPair.Value->AsObject());
-					}
-				}
+	const TSharedPtr<FJsonObject>* AssignedTicketObject = nullptr;
+	if (JsonObject->TryGetObjectField(TEXT("assigned_ticket"), AssignedTicketObject) && AssignedTicketObject && (*AssignedTicketObject).IsValid())
+	{
+		Response.AssignedTicket = FEGIK_MatchmakingResponse(*AssignedTicketObject);
+	}
 
-				if (JsonObject->HasTypedField<EJson::Object>(TEXT("assigned_ticket")))
-				{
-					//Check if Assigned Ticket is Null
-					Response.AssignedTicket = JsonObject->GetObjectField(TEXT("assigned_ticket")); 
-				}
+	// Parse assignment details from attributes.assignment
+	const TSharedPtr<FJsonObject>* AttributesObject = nullptr;
+	if (JsonObject->TryGetObjectField(TEXT("attributes"), AttributesObject) && AttributesObject && (*AttributesObject).IsValid())
+	{
+		const TSharedPtr<FJsonObject>* AssignmentObject = nullptr;
+		if ((*AttributesObject)->HasTypedField<EJson::Object>(TEXT("assignment")))
+		{
+			if ((*AttributesObject)->TryGetObjectField(TEXT("assignment"), AssignmentObject) && AssignmentObject && (*AssignmentObject).IsValid())
+			{
+				// Store raw JSON string for flexible handling of variable structures
+				FString AssignmentJsonString;
+				TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&AssignmentJsonString);
+				FJsonSerializer::Serialize((*AssignmentObject).ToSharedRef(), Writer);
+				Response.AssignmentDetailsJson = AssignmentJsonString;
 
-				// Parse assignment details from attributes.assignment
-				const TSharedPtr<FJsonObject>* AttributesObject;
-				if (JsonObject->TryGetObjectField(TEXT("attributes"), AttributesObject))
-				{
-					const TSharedPtr<FJsonObject>* AssignmentObject;
-					if ((*AttributesObject)->HasTypedField<EJson::Object>(TEXT("assignment")))
-					{
-						if ((*AttributesObject)->TryGetObjectField(TEXT("assignment"), AssignmentObject))
-						{
-							// Store raw JSON string for flexible handling of variable structures
-							FString AssignmentJsonString;
-							TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&AssignmentJsonString);
-							FJsonSerializer::Serialize((*AssignmentObject).ToSharedRef(), Writer);
-							Response.AssignmentDetailsJson = AssignmentJsonString;
-							
-							// Try to parse into structured format (will gracefully handle missing fields)
-							Response.Assignment = FEGIK_AssignmentStruct(*AssignmentObject);
-						}
-						else
-						{
-							Response.Assignment = FEGIK_AssignmentStruct("null");
-							Response.AssignmentDetailsJson = "";
-						}
-					}
-					else
-					{
-						Response.Assignment = FEGIK_AssignmentStruct("null");
-						Response.AssignmentDetailsJson = "";
-					}
-				}
-				else
-				{
-					Response.Assignment = FEGIK_AssignmentStruct("null");
-					Response.AssignmentDetailsJson = "";
-				}
-
-				OnSuccess.Broadcast(Response, FEGIK_ErrorStruct());
+				// Try to parse into structured format
+				Response.Assignment = FEGIK_AssignmentStruct(*AssignmentObject);
 			}
 			else
 			{
-				OnFailure.Broadcast(FEGIK_GetBackFillTicketInformationResponse(), FEGIK_ErrorStruct(0, "Failed to parse JSON"));
+				Response.Assignment = FEGIK_AssignmentStruct("null");
+				Response.AssignmentDetailsJson = TEXT("");
 			}
-		}
-		else if(ResponseCode == 429)
-		{
-			// 429 Too Many Requests - Rate limiting response
-			OnRateLimited.Broadcast(FEGIK_GetBackFillTicketInformationResponse(), FEGIK_ErrorStruct(429, HttpResponse->GetContentAsString()));
 		}
 		else
 		{
-			OnFailure.Broadcast(FEGIK_GetBackFillTicketInformationResponse(), FEGIK_ErrorStruct(ResponseCode, HttpResponse->GetContentAsString()));
+			Response.Assignment = FEGIK_AssignmentStruct("null");
+			Response.AssignmentDetailsJson = TEXT("");
 		}
 	}
 	else
 	{
-		OnFailure.Broadcast(FEGIK_GetBackFillTicketInformationResponse(), FEGIK_ErrorStruct(0, "Failed to parse JSON"));
+		Response.Assignment = FEGIK_AssignmentStruct("null");
+		Response.AssignmentDetailsJson = TEXT("");
 	}
+
+	OnSuccess.Broadcast(Response, FEGIK_ErrorStruct());
 }
 
-void UEGIK_GetBackFillTicketInformation::Activate()
+void UEGIK_GetBackFillTicketInformation::HandleError(int32 ErrorCode, const FString& ErrorMessage)
 {
-	Super::Activate();
-	FHttpModule* Http = &FHttpModule::Get();
-	TSharedRef<IHttpRequest> Request = Http->CreateRequest();
-	Request->SetURL(Var_MatchmakingURL + "/backfills/" + Var_BackfillId);
-	Request->SetVerb("GET");
-	Request->SetHeader("Authorization", Var_AuthToken);
-	Request->OnProcessRequestComplete().BindUObject(this, &UEGIK_GetBackFillTicketInformation::OnResponseReceived);
-	if(!Request->ProcessRequest())
-	{
-		OnFailure.Broadcast(FEGIK_GetBackFillTicketInformationResponse(), FEGIK_ErrorStruct(0, "Failed to connect, likely the Matchmaker is down or the URL is incorrect or is not released"));
-	}
+	OnFailure.Broadcast(FEGIK_GetBackFillTicketInformationResponse(), FEGIK_ErrorStruct(ErrorCode, ErrorMessage));
+}
+
+void UEGIK_GetBackFillTicketInformation::HandleRateLimited(const FString& ResponseContent)
+{
+	OnRateLimited.Broadcast(FEGIK_GetBackFillTicketInformationResponse(), FEGIK_ErrorStruct(429, ResponseContent));
 }

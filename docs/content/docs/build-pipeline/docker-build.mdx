@@ -1,0 +1,24 @@
+---
+title: Docker Build
+description: Build inside Docker to avoid host Unreal/Linux setup drift
+---
+
+## When To Use
+
+Use Docker Build for reproducible CI and less host-specific setup.
+
+{/* ![Docker build workflow](/screenshots/build-docker.png) */}
+
+## Plugin Settings
+
+- `Build Mode = Docker Build`
+- `GitHub Username`
+- `GitHub PAT (read:packages)`
+- `UE Docker Image Tag`
+
+## Checklist
+
+- GitHub PAT can pull required packages.
+- Docker daemon is reachable.
+- Build output includes dedicated server binary.
+- Image starts with expected command/args.

@@ -3,13 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/EngineBaseTypes.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "HttpModule.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonReader.h"
 #include "Interfaces/IHttpResponse.h"
+#include "EGIK_JsonKeyCompat.h"
+#include "EGIK_MatchmakingAttributes.h"
 #include "EGIKBlueprintFunctionLibrary.generated.h"
+
+class APlayerController;
 
 USTRUCT(BlueprintType)
 struct FEGIK_PortStruct
@@ -86,8 +91,13 @@ struct FEGIK_AssignmentStruct
     UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Assignment")
     FString PublicIP;
 
+    // Convenience accessor for the "gameport" port (backwards compatible)
     UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Assignment")
     FEGIK_PortStruct GamePort;
+
+    // All ports returned by the assignment, keyed by port name
+    UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Assignment")
+    TMap<FString, FEGIK_PortStruct> Ports;
 
     UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Assignment")
     FEGIK_LocationStruct Location;
@@ -137,45 +147,48 @@ struct FEGIK_AssignmentStruct
     }
 
 private:
-    // Helper function to reset the struct
     void Reset()
     {
         bIsNullOrEmpty = true;
         FQDN = "";
         PublicIP = "";
-        GamePort.InternalPort = 0;
-        GamePort.ExternalPort = 0;
-        GamePort.Protocol = "";
-        Location.City = "";
-        Location.Country = "";
-        Location.Continent = "";
-        Location.AdministrativeDivision = "";
-        Location.Timezone = "";
+        GamePort = FEGIK_PortStruct();
+        Ports.Empty();
+        Location = FEGIK_LocationStruct();
     }
 
-    // Helper function to deserialize JSON into the struct
     void DeserializeFromJson(TSharedPtr<FJsonObject> JsonObject)
     {
         if (!JsonObject.IsValid()) return;
 
-        // Parse the FQDN and Public IP fields
         JsonObject->TryGetStringField(TEXT("fqdn"), FQDN);
         JsonObject->TryGetStringField(TEXT("public_ip"), PublicIP);
 
-        // Navigate to the "ports" object and then "gameport"
+        // Parse all ports from the "ports" object
         const TSharedPtr<FJsonObject>* PortsObject;
         if (JsonObject->TryGetObjectField(TEXT("ports"), PortsObject))
         {
-            const TSharedPtr<FJsonObject>* GamePortObject;
-            if ((*PortsObject)->TryGetObjectField(TEXT("gameport"), GamePortObject))
+            for (const auto& PortEntry : (*PortsObject)->Values)
             {
-                (*GamePortObject)->TryGetNumberField(TEXT("internal"), GamePort.InternalPort);
-                (*GamePortObject)->TryGetNumberField(TEXT("external"), GamePort.ExternalPort);
-                (*GamePortObject)->TryGetStringField(TEXT("protocol"), GamePort.Protocol);
+                const TSharedPtr<FJsonObject>* PortObject;
+                if ((*PortsObject)->TryGetObjectField(PortEntry.Key, PortObject))
+                {
+                    FEGIK_PortStruct Port;
+                    (*PortObject)->TryGetNumberField(TEXT("internal"), Port.InternalPort);
+                    (*PortObject)->TryGetNumberField(TEXT("external"), Port.ExternalPort);
+                    (*PortObject)->TryGetStringField(TEXT("protocol"), Port.Protocol);
+                    Ports.Add(EGIK_JSONKEY(PortEntry.Key), Port);
+
+                    // Set GamePort for backwards compatibility (first port named "gameport", or first port found)
+                    if (PortEntry.Key == TEXT("gameport") || GamePort.InternalPort == 0)
+                    {
+                        GamePort = Port;
+                    }
+                }
             }
         }
 
-        // Navigate to the "location" object
+        // Parse the "location" object
         const TSharedPtr<FJsonObject>* LocationObject;
         if (JsonObject->TryGetObjectField(TEXT("location"), LocationObject))
         {
@@ -196,20 +209,31 @@ struct FEGIK_CreateMatchmakingStruct
     UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
     FString Profile;
 
+	/** Recommended: type-safe attributes that require no JSON syntax. */
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
+	FEGIK_MatchmakingAttributes StructuredAttributes;
+
+	/** Advanced/backward-compatible raw JSON object. Do not set together with StructuredAttributes. */
     UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
     FString Attributes;
 
-    UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-    FString RealIp = "";
+	/** Best-effort runtime comparison against the live Matchmaker profile schema. Logs only and never blocks this request. */
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking | Debug")
+	bool bLogProfileDebugInfo = false;
 
+	/** Legacy proxy header value. Prefer PlayerIp, which is serialized as player_ip in the request body. */
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking", meta = (DeprecatedProperty, DeprecationMessage = "Use PlayerIp. RealIp is retained only for X-Real-Ip proxy compatibility."))
+	FString RealIp = "";
+
+	/** Optional public player IP for server-to-server calls. Serialized as JSON field player_ip. */
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
 	FString PlayerIp = "";
 
     UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-    FString MatchmakingURL;
+    FString MatchmakingURL = "";
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
-	FString AuthToken;
+	FString AuthToken = "";
 };
 
 USTRUCT(BlueprintType)
@@ -228,6 +252,9 @@ struct FEGIK_MatchmakingResponse
 	
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
 	FString TeamId;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
+	FString MatchId;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Matchmaking")
 	FString ExpansionStage;
@@ -253,6 +280,7 @@ struct FEGIK_MatchmakingResponse
 		GameProfile = "";
 		GroupId = "";
 		TeamId = "";
+		MatchId = "";
 		ExpansionStage = "";
 		IP = "";
 		Attributes = "";
@@ -278,6 +306,10 @@ struct FEGIK_MatchmakingResponse
 			{
 				TeamId = JsonObject->GetStringField(TEXT("team_id"));
 			}
+			if(JsonObject->HasField(TEXT("match_id")))
+			{
+				MatchId = JsonObject->GetStringField(TEXT("match_id"));
+			}
 			if(JsonObject->HasField(TEXT("expansion_stage")))
 			{
 				ExpansionStage = JsonObject->GetStringField(TEXT("expansion_stage"));
@@ -294,12 +326,12 @@ struct FEGIK_MatchmakingResponse
 			{
 				FDateTime::ParseIso8601(*JsonObject->GetStringField(TEXT("created_at")), CreatedAt);
 			}
-			if(JsonObject->HasField(TEXT("assignment")))
+			if (JsonObject->HasTypedField<EJson::Object>(TEXT("assignment")))
 			{
-				TSharedPtr<FJsonObject> AssignmentJson = JsonObject->GetObjectField(TEXT("assignment"));
-				if (AssignmentJson.IsValid())
+				const TSharedPtr<FJsonObject>* AssignmentJson = nullptr;
+				if (JsonObject->TryGetObjectField(TEXT("assignment"), AssignmentJson) && AssignmentJson)
 				{
-					Assignment = FEGIK_AssignmentStruct(AssignmentJson);
+					Assignment = FEGIK_AssignmentStruct(*AssignmentJson);
 				}
 			}
 			if (JsonObject->HasField(TEXT("attributes")))
@@ -428,13 +460,13 @@ struct FEGIK_FiltersStruct
 	UPROPERTY(BlueprintReadWrite, Category = "Edgegap Integration Kit | Deployment")
 	TEnumAsByte<EEGIK_FilterType> FilterType = EGIK_Any;
 
-	TSharedPtr<FJsonObject> ToJsonObject()
+	TSharedPtr<FJsonObject> ToJsonObject() const
 	{
 		TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 		JsonObject->SetStringField("field", Field);
 
 		TArray<TSharedPtr<FJsonValue>> ValuesArray;
-		for (auto val : Values)
+		for (const auto& val : Values)
 		{
 			ValuesArray.Add(MakeShareable(new FJsonValueString(val)));
 		}
@@ -682,7 +714,7 @@ struct FEGIK_DeploymentStatusAndInfoResponse
 				PortData.bTLS_Upgrade = PortObject->GetBoolField(TEXT("tls_upgrade"));
 				PortData.Link = PortObject->GetStringField(TEXT("link"));
 				PortData.Proxy = PortObject->GetIntegerField(TEXT("proxy"));
-				Ports.Add(PortEntry.Key, PortData);
+				Ports.Add(EGIK_JSONKEY(PortEntry.Key), PortData);
 			}
 
 			PublicIP = JsonObject->GetStringField(TEXT("public_ip"));
@@ -929,7 +961,7 @@ struct FEGIK_RelaySessionInfo
 					PortData.Port = PortObject->GetIntegerField(TEXT("port"));
 					PortData.Link = PortObject->GetStringField(TEXT("link"));
 					PortData.Protocol = PortObject->GetStringField(TEXT("protocol"));
-					Relay.Ports.Add(PortEntry.Key, PortData);
+					Relay.Ports.Add(EGIK_JSONKEY(PortEntry.Key), PortData);
 				}
 			}
 		}
@@ -958,20 +990,104 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit")
 	static FString GetAuthorizationKey();
 
+	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit | Server Browser")
+	static FString GetServerBrowserURL();
+
+	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit | Server Browser")
+	static FString GetServerBrowserServerToken();
+
+	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit | Server Browser")
+	static FString GetServerBrowserClientToken();
+
+	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit | Matchmaking")
+	static FString GetMatchmakingURL();
+
+	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit | Matchmaking")
+	static FString GetMatchmakingAuthToken();
+
+	/** Build a host:port address from a matchmaking assignment and named external port. */
+	UFUNCTION(BlueprintPure, Category = "Edgegap Integration Kit | Matchmaking | Travel")
+	static bool MakeMatchmakingAssignmentAddress(
+		const FEGIK_AssignmentStruct& Assignment,
+		FString& Address,
+		FString& ErrorMessage,
+		FName PortName = TEXT("gameport"),
+		bool bPreferFQDN = true);
+
+	/** Travel one local or remotely owned player. True means the travel instruction was accepted. */
+	UFUNCTION(BlueprintCallable, meta = (ExpandBoolAsExecs = "ReturnValue", AdvancedDisplay = "TravelType"), Category = "Edgegap Integration Kit | Matchmaking | Travel")
+	static bool TravelPlayerToMatch(
+		APlayerController* PlayerController,
+		const FString& Address,
+		FString& ErrorMessage,
+		ETravelType TravelType = TRAVEL_Absolute);
+
+	/** Resolve an assignment and travel one local or remotely owned player. */
+	UFUNCTION(BlueprintCallable, meta = (ExpandBoolAsExecs = "ReturnValue", AdvancedDisplay = "PortName,bPreferFQDN,TravelType"), Category = "Edgegap Integration Kit | Matchmaking | Travel")
+	static bool TravelPlayerToMatchAssignment(
+		APlayerController* PlayerController,
+		const FEGIK_AssignmentStruct& Assignment,
+		FString& ErrorMessage,
+		FName PortName = TEXT("gameport"),
+		bool bPreferFQDN = true,
+		ETravelType TravelType = TRAVEL_Absolute);
+
+	/**
+	 * Authority-only party travel for an explicit PlayerController roster.
+	 * Remote members travel first; a listen-server leader travels after the RPC flush delay.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, meta = (WorldContext = "WorldContextObject", ExpandBoolAsExecs = "ReturnValue", AdvancedDisplay = "LeaderTravelDelay,TravelType", ClampMin = "0.0"), Category = "Edgegap Integration Kit | Matchmaking | Travel")
+	static bool TravelPartyToMatch(
+		UObject* WorldContextObject,
+		const TArray<APlayerController*>& PartyMembers,
+		const FString& Address,
+		FString& ErrorMessage,
+		float LeaderTravelDelay = 0.5f,
+		ETravelType TravelType = TRAVEL_Absolute);
+
+	/** Resolve an assignment and travel an explicit PlayerController party roster. */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, meta = (WorldContext = "WorldContextObject", ExpandBoolAsExecs = "ReturnValue", AdvancedDisplay = "PortName,bPreferFQDN,LeaderTravelDelay,TravelType", ClampMin = "0.0"), Category = "Edgegap Integration Kit | Matchmaking | Travel")
+	static bool TravelPartyToMatchAssignment(
+		UObject* WorldContextObject,
+		const TArray<APlayerController*>& PartyMembers,
+		const FEGIK_AssignmentStruct& Assignment,
+		FString& ErrorMessage,
+		FName PortName = TEXT("gameport"),
+		bool bPreferFQDN = true,
+		float LeaderTravelDelay = 0.5f,
+		ETravelType TravelType = TRAVEL_Absolute);
+
+	/**
+	 * Convenience for one-party lobby worlds. Travels every connected PlayerController.
+	 * Use Travel Party To Match Assignment when a server hosts more than one party.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, meta = (WorldContext = "WorldContextObject", ExpandBoolAsExecs = "ReturnValue", AdvancedDisplay = "PortName,bPreferFQDN,LeaderTravelDelay,TravelType", ClampMin = "0.0"), Category = "Edgegap Integration Kit | Matchmaking | Travel")
+	static bool TravelAllConnectedPlayersToMatchAssignment(
+		UObject* WorldContextObject,
+		const FEGIK_AssignmentStruct& Assignment,
+		FString& ErrorMessage,
+		FName PortName = TEXT("gameport"),
+		bool bPreferFQDN = true,
+		float LeaderTravelDelay = 0.5f,
+		ETravelType TravelType = TRAVEL_Absolute);
+
 	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit")
 	static void GetEnvironmentVariable(FString Key, FString& Value);
 
 	/**
-	 * Get player group mapping from environment variables
-	 * @param GroupID - The group ID to get player mapping for
-	 * @param PlayerIDs - Array of player IDs in the group
-	 * @return True if group ID was found and mapping was retrieved
+	 * Get the ticket IDs assigned to a matchmaking group from MM_GROUPS.
+	 * Falls back to the pre-3.x MM_GROUP_MAPPING name for existing deployments.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit")
+	UFUNCTION(BlueprintCallable, Category = "Edgegap Integration Kit | Matchmaking | Server")
+	static bool GetGroupTicketMapping(const FString& GroupID, TArray<FString>& TicketIDs);
+
+	/** Legacy alias. MM_GROUPS contains ticket IDs, not arbitrary player IDs. */
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "Use Get Group Ticket Mapping. Current matchmakers inject MM_GROUPS and its values are ticket IDs."), Category = "Edgegap Integration Kit | Matchmaking | Server")
 	static bool GetGroupPlayerMapping(const FString& GroupID, TArray<FString>& PlayerIDs);
 
 	/**
-	 * Get the expansion stage from environment variables (MM_EXPANSION_STAGE)
+	 * Get the expansion stage from MM_EXPANSION.
+	 * Falls back to the legacy MM_EXPANSION_STAGE name.
 	 * @param ExpansionStage - The expansion stage (e.g. "initial", "15", "30")
 	 * @return True if the expansion stage was found
 	 */

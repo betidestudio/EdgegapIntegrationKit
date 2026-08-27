@@ -1,0 +1,67 @@
+---
+title: Create Deployment (v2)
+description: Recommended deployment flow with explicit users and webhook hooks
+---
+
+## Why v2
+
+- Cleaner user input (`ip_address` or `geo_coordinates`).
+- Better structure for readiness/error webhooks.
+- Recommended for new Unreal integrations.
+
+## Step 1 — Create the Deployment
+
+1. Build a `FEGIK_CreateDeploymentV2Struct`.
+2. Set `Application` and `Version` to match your Edgegap app.
+3. Add at least one `FEGIK_DeploymentUser` (IP address or geo coordinates).
+4. Optionally set environment variables, tags, and webhooks.
+5. Call `CreateDeploymentV2`.
+6. On success, save the `RequestId` from the response — you need it for everything that follows.
+
+![Create deployment v2 and get RequestId](/screenshots/deployment-v2-create.png)
+
+## Step 2 — Poll Status and Connect
+
+Once you have the `RequestId`:
+
+1. Call `GetDeploymentStatusAndInfo` with the `RequestId`.
+2. Check `CurrentStatus` — keep polling until the deployment is ready.
+3. Read `FQDN` and `Ports` from the response to build your connection address.
+4. Use `GetContainerLogs` and `GetDeploymentMetrics` to debug if something goes wrong.
+
+![Poll deployment status, read FQDN and Ports to connect](/screenshots/deployment-v2-connect.png)
+
+## Required Fields
+
+- `Application`
+- `Version`
+- `Users` (at least one)
+
+## C++
+
+```cpp
+#include "Deployments/EGIK_CreateDeploymentV2.h"
+
+FEGIK_CreateDeploymentV2Struct Req;
+Req.Application = TEXT("my-game-server");
+Req.Version = TEXT("1.2.3");
+Req.bRequireCachedLocations = false;
+
+FEGIK_DeploymentUser U;
+U.UserType = EEGIK_DeploymentUserType::IpAddress;
+U.IpAddress = TEXT("8.8.8.8");
+Req.Users.Add(U);
+
+FEGIK_EnvironmentVariableStruct Env;
+Env.Key = TEXT("MAP");
+Env.Value = TEXT("Arena01");
+Req.EnvironmentVariables.Add(Env);
+
+auto* Node = UEGIK_CreateDeploymentV2::CreateDeploymentV2(Req);
+Node->OnSuccess.AddDynamic(this, &UMySubsystem::OnDeploymentCreated);
+Node->Activate();
+```
+
+## Next
+
+See [Manage Deployments](/deployments/manage) for stopping, logs, metrics, and bulk operations.
